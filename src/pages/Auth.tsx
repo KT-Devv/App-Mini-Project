@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +27,7 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       toast.success('Check your email to confirm your account!');
-      navigate('/');
+      navigate('/dashboard');
     }
     setLoading(false);
   };
@@ -43,7 +42,7 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     }
     setLoading(false);
   };
