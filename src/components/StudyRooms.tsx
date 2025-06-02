@@ -22,7 +22,7 @@ interface StudySession {
   max_participants: number;
   created_at: string;
   scheduled_for: string;
-  profiles: {
+  profiles?: {
     username: string;
   };
   session_participants: any[];
@@ -46,20 +46,34 @@ const StudyRooms = () => {
   }, []);
 
   const fetchStudySessions = async () => {
-    const { data, error } = await supabase
+    const { data: sessionsData, error } = await supabase
       .from('study_sessions')
       .select(`
         *,
-        profiles (username),
         session_participants (id)
       `)
       .order('created_at', { ascending: false });
 
     if (error) {
       toast.error('Failed to load study sessions');
-    } else {
-      setSessions(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch profiles separately for session creators
+    const userIds = [...new Set(sessionsData?.map(session => session.created_by).filter(Boolean))];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', userIds);
+
+    // Combine sessions with profile data
+    const sessionsWithProfiles = sessionsData?.map(session => ({
+      ...session,
+      profiles: profilesData?.find(profile => profile.id === session.created_by) || { username: 'Unknown' }
+    })) || [];
+
+    setSessions(sessionsWithProfiles);
     setLoading(false);
   };
 

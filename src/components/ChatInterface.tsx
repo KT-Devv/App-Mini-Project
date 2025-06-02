@@ -24,7 +24,7 @@ interface Message {
   user_id: string;
   created_at: string;
   room_id: string;
-  profiles: {
+  profiles?: {
     username: string;
   };
 }
@@ -68,20 +68,31 @@ const ChatInterface = () => {
   const fetchMessages = async () => {
     if (!activeRoom) return;
 
-    const { data, error } = await supabase
+    const { data: messagesData, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        profiles (username)
-      `)
+      .select('*')
       .eq('room_id', activeRoom)
       .order('created_at');
 
     if (error) {
       toast.error('Failed to load messages');
-    } else {
-      setMessages(data || []);
+      return;
     }
+
+    // Fetch profiles separately for message authors
+    const userIds = [...new Set(messagesData?.map(msg => msg.user_id).filter(Boolean))];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', userIds);
+
+    // Combine messages with profile data
+    const messagesWithProfiles = messagesData?.map(msg => ({
+      ...msg,
+      profiles: profilesData?.find(profile => profile.id === msg.user_id) || { username: 'Unknown User' }
+    })) || [];
+
+    setMessages(messagesWithProfiles);
   };
 
   const joinRoom = async () => {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ interface Resource {
   subject: string;
   downloads: number;
   created_at: string;
-  profiles: {
+  profiles?: {
     username: string;
   };
 }
@@ -46,19 +45,31 @@ const ResourceHub = () => {
   }, []);
 
   const fetchResources = async () => {
-    const { data, error } = await supabase
+    const { data: resourcesData, error } = await supabase
       .from('resources')
-      .select(`
-        *,
-        profiles (username)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
       toast.error('Failed to load resources');
-    } else {
-      setResources(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch profiles separately for resource uploaders
+    const userIds = [...new Set(resourcesData?.map(resource => resource.uploaded_by).filter(Boolean))];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', userIds);
+
+    // Combine resources with profile data
+    const resourcesWithProfiles = resourcesData?.map(resource => ({
+      ...resource,
+      profiles: profilesData?.find(profile => profile.id === resource.uploaded_by) || { username: 'Unknown' }
+    })) || [];
+
+    setResources(resourcesWithProfiles);
     setLoading(false);
   };
 
