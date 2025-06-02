@@ -1,31 +1,126 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Send, Plus, Search, Users, Clock, Hash, Smile, Paperclip } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+
+interface ChatRoom {
+  id: string;
+  name: string;
+  subject: string;
+  description: string;
+  color: string;
+  created_at: string;
+}
+
+interface Message {
+  id: number;
+  content: string;
+  user_id: string;
+  created_at: string;
+  room_id: string;
+  profiles: {
+    username: string;
+  };
+}
 
 const ChatInterface = () => {
   const [message, setMessage] = useState('');
-  const [activeRoom, setActiveRoom] = useState('general');
+  const [activeRoom, setActiveRoom] = useState<string>('');
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const chatRooms = [
-    { id: 'general', name: 'General Discussion', members: 24, lastMessage: '2 min ago', unread: 3, color: 'bg-blue-500' },
-    { id: 'math', name: 'Mathematics Help', members: 15, lastMessage: '5 min ago', unread: 1, color: 'bg-green-500' },
-    { id: 'physics', name: 'Physics Problems', members: 12, lastMessage: '10 min ago', unread: 0, color: 'bg-purple-500' },
-    { id: 'chemistry', name: 'Chemistry Lab', members: 8, lastMessage: '1 hour ago', unread: 0, color: 'bg-orange-500' },
-  ];
+  useEffect(() => {
+    fetchChatRooms();
+  }, []);
 
-  const messages = [
-    { id: 1, user: 'Alex M.', message: 'Can someone help me with calculus derivatives? I\'m stuck on this problem 📚', time: '10:30 AM', isOwn: false, avatar: 'AM' },
-    { id: 2, user: 'Sarah K.', message: 'Sure! What specific problem are you working on? I just finished that chapter 😊', time: '10:32 AM', isOwn: false, avatar: 'SK' },
-    { id: 3, user: 'You', message: 'I can help too. Share the problem and we\'ll work through it together! 💪', time: '10:33 AM', isOwn: true, avatar: 'YU' },
-    { id: 4, user: 'Alex M.', message: 'Thanks! It\'s about finding the derivative of f(x) = x³ + 2x² - 5x + 1', time: '10:35 AM', isOwn: false, avatar: 'AM' },
-    { id: 5, user: 'Sarah K.', message: 'Easy! Use the power rule: f\'(x) = 3x² + 4x - 5 ✨', time: '10:37 AM', isOwn: false, avatar: 'SK' },
-  ];
+  useEffect(() => {
+    if (activeRoom) {
+      fetchMessages();
+      joinRoom();
+    }
+  }, [activeRoom]);
+
+  const fetchChatRooms = async () => {
+    const { data, error } = await supabase
+      .from('chat_rooms')
+      .select('*')
+      .order('created_at');
+
+    if (error) {
+      toast.error('Failed to load chat rooms');
+    } else {
+      setChatRooms(data || []);
+      if (data && data.length > 0) {
+        setActiveRoom(data[0].id);
+      }
+    }
+    setLoading(false);
+  };
+
+  const fetchMessages = async () => {
+    if (!activeRoom) return;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        profiles (username)
+      `)
+      .eq('room_id', activeRoom)
+      .order('created_at');
+
+    if (error) {
+      toast.error('Failed to load messages');
+    } else {
+      setMessages(data || []);
+    }
+  };
+
+  const joinRoom = async () => {
+    if (!user || !activeRoom) return;
+
+    const { error } = await supabase
+      .from('room_members')
+      .upsert({ room_id: activeRoom, user_id: user.id });
+
+    if (error && !error.message.includes('duplicate key')) {
+      console.error('Failed to join room:', error);
+    }
+  };
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || !user || !activeRoom) return;
+
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        content: message,
+        user_id: user.id,
+        room_id: activeRoom
+      });
+
+    if (error) {
+      toast.error('Failed to send message');
+    } else {
+      setMessage('');
+      fetchMessages();
+    }
+  };
 
   const activeRoomData = chatRooms.find(room => room.id === activeRoom);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 pb-20">
@@ -59,11 +154,6 @@ const ChatInterface = () => {
               >
                 <div className={`w-3 h-3 ${room.color} rounded-full`}></div>
                 <span className="text-sm font-medium">{room.name}</span>
-                {room.unread > 0 && (
-                  <Badge className="bg-red-500 text-white text-xs w-5 h-5 p-0 flex items-center justify-center">
-                    {room.unread}
-                  </Badge>
-                )}
               </button>
             ))}
           </div>
@@ -77,16 +167,6 @@ const ChatInterface = () => {
                 <Hash className="h-4 w-4 text-gray-500" />
                 <span className="font-medium text-sm">{activeRoomData.name}</span>
               </div>
-              <div className="flex items-center space-x-3 text-xs text-gray-500">
-                <span className="flex items-center">
-                  <Users className="h-3 w-3 mr-1" />
-                  {activeRoomData.members}
-                </span>
-                <span className="flex items-center">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {activeRoomData.lastMessage}
-                </span>
-              </div>
             </div>
           </div>
         )}
@@ -94,41 +174,48 @@ const ChatInterface = () => {
 
       {/* Enhanced Chat Messages */}
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'} animate-fade-in`}
-          >
-            <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${msg.isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
-              {!msg.isOwn && (
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-white">{msg.avatar}</span>
-                </div>
-              )}
-              
-              <div
-                className={`px-4 py-3 rounded-2xl shadow-sm ${
-                  msg.isOwn
-                    ? 'bg-blue-600 text-white rounded-br-md'
-                    : 'bg-white border text-gray-800 rounded-bl-md'
-                }`}
-              >
-                {!msg.isOwn && (
-                  <p className="text-xs font-semibold mb-1 text-blue-600">{msg.user}</p>
+        {messages.map((msg) => {
+          const isOwn = user?.id === msg.user_id;
+          return (
+            <div
+              key={msg.id}
+              className={`flex ${isOwn ? 'justify-end' : 'justify-start'} animate-fade-in`}
+            >
+              <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                {!isOwn && (
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-white">
+                      {msg.profiles?.username?.charAt(0).toUpperCase() || 'U'}
+                    </span>
+                  </div>
                 )}
-                <p className="text-sm leading-relaxed">{msg.message}</p>
-                <p className={`text-xs mt-2 ${msg.isOwn ? 'text-blue-100' : 'text-gray-500'}`}>
-                  {msg.time}
-                </p>
+                
+                <div
+                  className={`px-4 py-3 rounded-2xl shadow-sm ${
+                    isOwn
+                      ? 'bg-blue-600 text-white rounded-br-md'
+                      : 'bg-white border text-gray-800 rounded-bl-md'
+                  }`}
+                >
+                  {!isOwn && (
+                    <p className="text-xs font-semibold mb-1 text-blue-600">
+                      {msg.profiles?.username || 'Unknown User'}
+                    </p>
+                  )}
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  <p className={`text-xs mt-2 ${isOwn ? 'text-blue-100' : 'text-gray-500'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Enhanced Message Input */}
       <div className="bg-white border-t p-4 shadow-lg">
-        <div className="flex items-center space-x-2 mb-2">
+        <form onSubmit={sendMessage} className="flex items-center space-x-2 mb-2">
           <div className="flex-1 relative">
             <Input
               placeholder="Type your message..."
@@ -146,13 +233,14 @@ const ChatInterface = () => {
             </div>
           </div>
           <Button 
+            type="submit"
             size="sm" 
             className="rounded-full w-10 h-10 p-0 bg-blue-600 hover:bg-blue-700 shadow-md"
             disabled={!message.trim()}
           >
             <Send className="h-4 w-4" />
           </Button>
-        </div>
+        </form>
         <p className="text-xs text-gray-500 text-center">
           Press Enter to send • Be respectful and helpful
         </p>

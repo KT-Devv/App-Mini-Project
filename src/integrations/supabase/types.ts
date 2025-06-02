@@ -9,12 +9,43 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_rooms: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          subject: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          subject: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
           created_at: string | null
           group_id: number | null
           id: number
+          room_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -22,6 +53,7 @@ export type Database = {
           created_at?: string | null
           group_id?: number | null
           id?: number
+          room_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -29,6 +61,7 @@ export type Database = {
           created_at?: string | null
           group_id?: number | null
           id?: number
+          room_id?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -40,10 +73,141 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          id: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          id: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      resources: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          downloads: number | null
+          file_size: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          subject: string
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          downloads?: number | null
+          file_size?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          subject: string
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          downloads?: number | null
+          file_size?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          subject?: string
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      room_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          room_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          room_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          room_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_participants: {
+        Row: {
+          id: string
+          joined_at: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "study_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -76,6 +240,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      study_sessions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_participants: number | null
+          scheduled_for: string | null
+          subject: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_participants?: number | null
+          scheduled_for?: string | null
+          subject: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_participants?: number | null
+          scheduled_for?: string | null
+          subject?: string
+          title?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {

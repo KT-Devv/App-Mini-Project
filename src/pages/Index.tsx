@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Video, BookOpen, Users, Brain, FileText, Plus, Search, Bell, Home, User, TrendingUp, Clock, Star } from 'lucide-react';
+import { MessageCircle, Video, BookOpen, Users, Brain, FileText, Plus, Search, Bell, Home, User, TrendingUp, Clock, Star, LogIn } from 'lucide-react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
 import ChatInterface from '../components/ChatInterface';
@@ -11,10 +12,37 @@ import StudyRooms from '../components/StudyRooms';
 import ResourceHub from '../components/ResourceHub';
 import AIAssistant from '../components/AIAssistant';
 import Profile from '../components/Profile';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [notifications] = useState(3);
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Brain className="h-6 w-6 text-white" />
+          </div>
+          <h2 className="text-xl font-bold">Loading StudySphere...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to auth
+  }
 
   const quickActions = [
     { title: 'Ask Question', description: 'Get help from peers', icon: MessageCircle, color: 'bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('chat') },
