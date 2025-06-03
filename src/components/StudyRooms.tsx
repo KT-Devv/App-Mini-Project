@@ -30,7 +30,7 @@ interface StudySession {
   profiles?: {
     username: string;
   };
-  session_participants: any[];
+  session_participants: Participant[];
 }
 
 const StudyRooms = () => {
@@ -47,39 +47,67 @@ const StudyRooms = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchStudySessions();
+    fetchStudySessions().then((fetchedSessions) => {
+      setSessions(fetchedSessions);
+      setLoading(false);
+    });
   }, []);
 
   const fetchStudySessions = async () => {
-    const { data: sessionsData, error } = await supabase
-      .from('study_sessions')
-      .select(`
-        *,
-        session_participants (id)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('study_sessions')
+        .select(`
+          id,
+          title,
+          subject,
+          description,
+          is_active,
+          max_participants,
+          created_at,
+          scheduled_for,
+          created_by,
+          session_participants (
+            session_id,
+            user_id,
+            joined_at
+          )
+        `);
 
-    if (error) {
-      toast.error('Failed to load study sessions');
-      setLoading(false);
-      return;
+      if (sessionsError) {
+        console.error('Error fetching study sessions:', sessionsError);
+        toast.error('Failed to fetch study sessions.');
+        return [];
+      }
+
+      // Fetch profiles for the created_by field
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username');
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        toast.error('Failed to fetch profiles.');
+        return [];
+      }
+
+      // Map sessions with profiles and participants
+      const sessionsWithProfiles = sessionsData.map((session) => ({
+        ...session,
+        profiles: profilesData.find((profile) => profile.id === session.created_by) || { username: 'Unknown' },
+        session_participants: session.session_participants.map((participant) => ({
+          session_id: participant.session_id,
+          user_id: participant.user_id,
+          joined_at: participant.joined_at,
+        })),
+      }));
+
+      return sessionsWithProfiles;
+    } catch (error) {
+      console.error('Unexpected error fetching study sessions:', error);
+      toast.error('An unexpected error occurred.');
+      return [];
     }
-
-    // Fetch profiles separately for session creators
-    const userIds = [...new Set(sessionsData?.map(session => session.created_by).filter(Boolean))];
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, username')
-      .in('id', userIds);
-
-    // Combine sessions with profile data
-    const sessionsWithProfiles = sessionsData?.map(session => ({
-      ...session,
-      profiles: profilesData?.find(profile => profile.id === session.created_by) || { username: 'Unknown' }
-    })) || [];
-
-    setSessions(sessionsWithProfiles);
-    setLoading(false);
   };
 
   const createSession = async (e: React.FormEvent) => {
@@ -106,7 +134,7 @@ const StudyRooms = () => {
         max_participants: 10,
         scheduled_for: ''
       });
-      fetchStudySessions();
+      fetchStudySessions().then((fetchedSessions) => setSessions(fetchedSessions));
     }
   };
 
@@ -128,7 +156,7 @@ const StudyRooms = () => {
       }
     } else {
       toast.success('Joined session successfully!');
-      fetchStudySessions();
+      fetchStudySessions().then((fetchedSessions) => setSessions(fetchedSessions));
     }
   };
 

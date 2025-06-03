@@ -118,7 +118,7 @@ const ResourceHub = () => {
         setSelectedFile(null);
         fetchResources();
       }
-    } catch (_error) {
+    } catch  {
       toast.error('Failed to upload resource');
     }
   };
