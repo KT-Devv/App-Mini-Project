@@ -15,7 +15,7 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
-type actionTypes = "ADD_TOAST" | "REMOVE_TOAST"; // Prefix with `type`
+//type actionTypes = "ADD_TOAST" | "REMOVE_TOAST"; // Prefix with `type`
 
 let count = 0;
 
