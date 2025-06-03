@@ -15,11 +15,19 @@ interface ChatRoom {
   created_at: string;
 }
 
+interface Message {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  room_id: string;
+}
+
 const ChatInterface: React.FC = () => {
   const { user } = useAuth();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
   const fetchChatRooms = useCallback(async () => {
@@ -58,7 +66,11 @@ const ChatInterface: React.FC = () => {
         return;
       }
 
-      setMessages(data || []);
+      // Convert `id` to string before setting the state
+      setMessages((data || []).map((message) => ({
+        ...message,
+        id: message.id.toString(), // Ensure `id` is a string
+      })));
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred.');
@@ -128,7 +140,7 @@ const ChatInterface: React.FC = () => {
           <>
             <h2>{activeRoom.name}</h2>
             <div className="messages">
-              {messages.map((message: any) => (
+              {messages.map((message: Message) => (
                 <div key={message.id} className="message">
                   <span>{message.content}</span>
                 </div>
