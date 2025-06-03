@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent,} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,12 @@ import { Video, Users, Clock, Plus, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+
+type Participant = {
+  session_id: string;
+  user_id: string;
+  joined_at: string;
+};
 
 interface StudySession {
   id: string;
