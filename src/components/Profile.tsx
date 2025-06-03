@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +28,7 @@ const Profile = () => {
   });
   const { user, signOut } = useAuth();
 
-  useEffect(() => {
-    fetchProfile();
-  }, [user]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -44,15 +39,20 @@ const Profile = () => {
 
     if (error) {
       console.error('Error fetching profile:', error);
-    } else {
-      setProfile(data);
-      setEditedProfile({
-        username: data.username,
-        email: data.email
-      });
+      return;
     }
+
+    setProfile(data);
+    setEditedProfile({
+      username: data.username,
+      email: data.email
+    });
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const updateProfile = async () => {
     if (!user || !profile) return;
