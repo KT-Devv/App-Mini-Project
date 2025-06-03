@@ -1,10 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Video, BookOpen, Users, Brain, FileText, Plus, Search, Bell, Home, User, TrendingUp, Clock, Star, LogIn } from 'lucide-react';
+import { MessageCircle, Video, Users, Brain, FileText, Plus, TrendingUp, Clock, Star, } from 'lucide-react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
 import ChatInterface from '../components/ChatInterface';

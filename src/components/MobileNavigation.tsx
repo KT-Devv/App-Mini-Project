@@ -1,5 +1,5 @@
 
-import { Home, MessageCircle, Video, FileText, User, Brain } from 'lucide-react';
+import { Home, MessageCircle, Video, User, Brain } from 'lucide-react';
 
 interface MobileNavigationProps {
   activeTab: string;
