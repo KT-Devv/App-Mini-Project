@@ -1,17 +1,13 @@
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
-
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  ({ className, ...props }, ref) => {
-    return (
-      <textarea
-        className={cn(className)}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
+  ({ className, ...props }, ref) => (
+    <textarea
+      ref={ref}
+      className={`rounded-lg border p-2 ${className}`}
+      {...props}
+    />
+  )
 );
 
 Textarea.displayName = "Textarea";
