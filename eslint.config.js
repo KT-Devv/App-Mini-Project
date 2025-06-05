@@ -7,7 +7,12 @@ import tsParser from "@typescript-eslint/parser";
 
 export default [
   {
-    ignores: ["dist"],
+    ignores: [
+      "dist", // Ignore build output
+      "node_modules", // Ignore dependencies
+      "android/app/build", // Ignore generated Android files
+      "android/app/build/intermediates/assets/**/*.js", // Ignore specific generated files
+    ],
   },
   {
     files: ["**/*.{ts,tsx}"],
