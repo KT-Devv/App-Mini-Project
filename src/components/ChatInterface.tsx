@@ -23,6 +23,10 @@ interface Message {
   created_at: string;
   user_id: string;
   room_id: string;
+  user_profile?: {
+    username: string;
+    email: string;
+  };
 }
 
 const ChatInterface: React.FC = () => {
@@ -59,22 +63,53 @@ const ChatInterface: React.FC = () => {
     if (!activeRoom) return;
 
     try {
-      const { data, error } = await supabase
+      console.log('Fetching messages for room:', activeRoom.id);
+      
+      // First get messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
         .eq('room_id', activeRoom.id)
         .order('created_at');
 
-      if (error) {
-        console.error('Error fetching messages:', error);
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
         toast.error('Failed to fetch messages.');
         return;
       }
 
-      setMessages((data || []).map((message) => ({
-        ...message,
-        id: message.id.toString(),
-      })));
+      console.log('Messages data:', messagesData);
+
+      // Then get user profiles for all users who sent messages
+      const userIds = [...new Set(messagesData?.map(msg => msg.user_id) || [])];
+      console.log('User IDs in messages:', userIds);
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, email')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching user profiles:', profilesError);
+      }
+
+      console.log('Profiles data:', profilesData);
+
+      // Combine messages with user profiles
+      const messagesWithProfiles = (messagesData || []).map((message) => {
+        const userProfile = profilesData?.find(profile => profile.id === message.user_id);
+        return {
+          ...message,
+          id: message.id.toString(),
+          user_profile: userProfile || { 
+            username: `User ${message.user_id.slice(0, 8)}`, 
+            email: 'unknown@email.com' 
+          }
+        };
+      });
+
+      console.log('Messages with profiles:', messagesWithProfiles);
+      setMessages(messagesWithProfiles);
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred.');
@@ -206,32 +241,43 @@ const ChatInterface: React.FC = () => {
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((message: Message) => (
-                <div key={message.id} className="flex items-start space-x-3">
-                  <Avatar className="h-8 w-8 mt-0.5">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-gray-500 text-white text-xs">
-                      {message.user_id.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline space-x-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        User {message.user_id.slice(0, 8)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1 break-words">
-                      {message.content}
-                    </p>
-                  </div>
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <Hash className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p>No messages yet. Start the conversation!</p>
                 </div>
-              ))}
+              ) : (
+                messages.map((message: Message) => (
+                  <div key={message.id} className="flex items-start space-x-3">
+                    <Avatar className="h-8 w-8 mt-0.5">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="bg-gray-500 text-white text-xs">
+                        {message.user_profile?.username?.[0]?.toUpperCase() || 
+                         message.user_profile?.email?.[0]?.toUpperCase() || 
+                         'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline space-x-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {message.user_profile?.username || 
+                           message.user_profile?.email?.split('@')[0] || 
+                           'Unknown User'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(message.created_at).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1 break-words">
+                        {message.content}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Message Input */}
