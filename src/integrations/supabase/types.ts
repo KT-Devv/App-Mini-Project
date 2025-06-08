@@ -46,7 +46,7 @@ export type Database = {
           group_id: number | null
           id: number
           room_id: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           content: string
@@ -54,7 +54,7 @@ export type Database = {
           group_id?: number | null
           id?: number
           room_id?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           content?: string
@@ -62,7 +62,7 @@ export type Database = {
           group_id?: number | null
           id?: number
           room_id?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -83,7 +83,7 @@ export type Database = {
             foreignKeyName: "messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
