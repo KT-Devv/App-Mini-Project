@@ -2,13 +2,11 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.a1fbf04d48b145bba071fc1e5bee78df',
+  appId: 'com.example.app',
   appName: 'StudySphere',
   webDir: 'dist',
-  server: {
-    url: 'https://a1fbf04d-48b1-45bb-a071-fc1e5bee78df.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+  server: {},
+  
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
