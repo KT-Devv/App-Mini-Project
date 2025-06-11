@@ -1,17 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Video, Users, Clock, Plus, Calendar, Share2, Copy, ExternalLink } from 'lucide-react';
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import SessionCard from './SessionCard';
+import CreateSessionModal from './CreateSessionModal';
+import ShareSessionModal from './ShareSessionModal';
+import VideoConference from './VideoConference';
 
 type Participant = {
   session_id: string;
@@ -43,6 +41,7 @@ const StudyRooms = () => {
   const [creating, setCreating] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
+  const [currentVideoSession, setCurrentVideoSession] = useState<StudySession | null>(null);
   const [newSession, setNewSession] = useState({
     title: '',
     subject: '',
@@ -287,21 +286,40 @@ const StudyRooms = () => {
     }
   };
 
-  const copySessionUrl = (session: StudySession) => {
-    if (session.session_url) {
-      navigator.clipboard.writeText(session.session_url);
-      toast.success('Session URL copied to clipboard!');
-    }
-  };
-
   const openShareModal = (session: StudySession) => {
     setSelectedSession(session);
     setShowShareModal(true);
   };
 
+  const openVideoSession = (sessionUrl: string) => {
+    const sessionId = sessionUrl.split('/').pop();
+    const session = sessions.find(s => s.session_url === sessionUrl);
+    if (session) {
+      setCurrentVideoSession(session);
+    }
+  };
+
+  const handleLeaveVideoSession = () => {
+    setCurrentVideoSession(null);
+  };
+
   const isUserInSession = (session: StudySession) => {
     return session.session_participants?.some(p => p.user_id === user?.id);
   };
+
+  const handleFormChange = (field: string, value: string | number) => {
+    setNewSession(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (currentVideoSession) {
+    return (
+      <VideoConference
+        sessionId={currentVideoSession.id}
+        sessionTitle={currentVideoSession.title}
+        onLeaveSession={handleLeaveVideoSession}
+      />
+    );
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading study sessions...</div>;
@@ -322,75 +340,6 @@ const StudyRooms = () => {
               Create Session
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Study Session</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={createSession} className="space-y-4">
-              <div>
-                <Label htmlFor="title">Session Title *</Label>
-                <Input
-                  id="title"
-                  value={newSession.title}
-                  onChange={(e) => setNewSession({...newSession, title: e.target.value})}
-                  placeholder="Enter session title..."
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="subject">Subject *</Label>
-                <Select
-                  value={newSession.subject}
-                  onValueChange={(value) => setNewSession({...newSession, subject: value})}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Mathematics">Mathematics</SelectItem>
-                    <SelectItem value="Physics">Physics</SelectItem>
-                    <SelectItem value="Chemistry">Chemistry</SelectItem>
-                    <SelectItem value="Biology">Biology</SelectItem>
-                    <SelectItem value="Computer Science">Computer Science</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={newSession.description}
-                  onChange={(e) => setNewSession({...newSession, description: e.target.value})}
-                  placeholder="Describe what you'll be studying..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="max_participants">Max Participants</Label>
-                <Input
-                  id="max_participants"
-                  type="number"
-                  min="2"
-                  max="50"
-                  value={newSession.max_participants}
-                  onChange={(e) => setNewSession({...newSession, max_participants: parseInt(e.target.value)})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="scheduled_for">Scheduled For (Optional)</Label>
-                <Input
-                  id="scheduled_for"
-                  type="datetime-local"
-                  value={newSession.scheduled_for}
-                  onChange={(e) => setNewSession({...newSession, scheduled_for: e.target.value})}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={creating}>
-                {creating ? 'Creating...' : 'Create Session'}
-              </Button>
-            </form>
-          </DialogContent>
         </Dialog>
       </div>
 
@@ -398,78 +347,19 @@ const StudyRooms = () => {
       <div>
         <h3 className="text-lg font-semibold mb-4">Active Sessions</h3>
         <div className="grid gap-4">
-          {sessions.filter(session => session.is_active).length === 0 ? (
+          {sessions.filter(session => session.is_active && session.status === 'live').length === 0 ? (
             <p className="text-gray-500 text-center py-8">No active sessions available. Create one to get started!</p>
           ) : (
-            sessions.filter(session => session.is_active).map((session) => (
-              <Card key={session.id} className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <h4 className="font-semibold text-green-800">{session.title}</h4>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className="bg-green-600 text-white">Live</Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openShareModal(session)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm text-green-700">{session.description}</p>
-                    <div className="flex items-center justify-between text-xs text-green-600">
-                      <span className="flex items-center">
-                        <Users className="h-3 w-3 mr-1" />
-                        {session.session_participants?.length || 0}/{session.max_participants} participants
-                      </span>
-                      <span className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {session.subject}
-                      </span>
-                    </div>
-                    <p className="text-xs text-green-600">
-                      Created by {session.profiles?.username || 'Unknown User'}
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    {isUserInSession(session) ? (
-                      <>
-                        <Button 
-                          size="sm" 
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                          onClick={() => window.open(session.session_url, '_blank')}
-                        >
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Open Session
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="border-red-600 text-red-600 hover:bg-red-50"
-                          onClick={() => leaveSession(session.id)}
-                        >
-                          Leave
-                        </Button>
-                      </>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-green-600 hover:bg-green-700"
-                        onClick={() => joinSession(session.id)}
-                      >
-                        <Video className="h-4 w-4 mr-2" />
-                        Join Session
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            sessions.filter(session => session.is_active && session.status === 'live').map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                isUserInSession={isUserInSession(session)}
+                onJoinSession={joinSession}
+                onLeaveSession={leaveSession}
+                onShareSession={openShareModal}
+                onOpenSession={openVideoSession}
+              />
             ))
           )}
         </div>
@@ -479,92 +369,39 @@ const StudyRooms = () => {
       <div>
         <h3 className="text-lg font-semibold mb-4">Upcoming Sessions</h3>
         <div className="grid gap-4">
-          {sessions.filter(session => !session.is_active && session.scheduled_for).length === 0 ? (
+          {sessions.filter(session => session.status === 'scheduled').length === 0 ? (
             <p className="text-gray-500 text-center py-4">No upcoming sessions scheduled.</p>
           ) : (
-            sessions.filter(session => !session.is_active && session.scheduled_for).map((session) => (
-              <Card key={session.id} className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <h4 className="font-semibold text-blue-800">{session.title}</h4>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="border-blue-600 text-blue-600">Scheduled</Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openShareModal(session)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm text-blue-700">{session.description}</p>
-                    <div className="flex items-center justify-between text-xs text-blue-600">
-                      <span className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {new Date(session.scheduled_for).toLocaleString()}
-                      </span>
-                      <span>{session.subject}</span>
-                    </div>
-                    <p className="text-xs text-blue-600">
-                      Created by {session.profiles?.username || 'Unknown User'}
-                    </p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
-                    onClick={() => joinSession(session.id)}
-                  >
-                    Join When Live
-                  </Button>
-                </CardContent>
-              </Card>
+            sessions.filter(session => session.status === 'scheduled').map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                isUserInSession={isUserInSession(session)}
+                onJoinSession={joinSession}
+                onLeaveSession={leaveSession}
+                onShareSession={openShareModal}
+                onOpenSession={openVideoSession}
+              />
             ))
           )}
         </div>
       </div>
 
-      {/* Share Modal */}
-      <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Session</DialogTitle>
-          </DialogHeader>
-          {selectedSession && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold">{selectedSession.title}</h4>
-                <p className="text-sm text-gray-600">{selectedSession.description}</p>
-              </div>
-              <div>
-                <Label>Session URL</Label>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Input
-                    value={selectedSession.session_url || ''}
-                    readOnly
-                    className="flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => copySessionUrl(selectedSession)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-500">
-                Share this URL with others so they can join your study session.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Modals */}
+      <CreateSessionModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={createSession}
+        formData={newSession}
+        onFormChange={handleFormChange}
+        isCreating={creating}
+      />
+
+      <ShareSessionModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        session={selectedSession}
+      />
     </div>
   );
 };

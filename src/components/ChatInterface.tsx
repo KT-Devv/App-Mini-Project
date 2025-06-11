@@ -23,7 +23,7 @@ interface Message {
   created_at: string;
   user_id: string;
   room_id: string;
-  user_profile?: {
+  profiles?: {
     username: string;
     email: string;
   };
@@ -35,6 +35,7 @@ const ChatInterface: React.FC = () => {
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const fetchChatRooms = useCallback(async () => {
     try {
@@ -53,9 +54,11 @@ const ChatInterface: React.FC = () => {
       if (data && data.length > 0 && !activeRoom) {
         setActiveRoom(data[0]);
       }
+      setLoading(false);
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred.');
+      setLoading(false);
     }
   }, [activeRoom]);
 
@@ -67,7 +70,17 @@ const ChatInterface: React.FC = () => {
       
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select('*')
+        .select(`
+          id,
+          content,
+          created_at,
+          user_id,
+          room_id,
+          profiles!messages_user_id_fkey (
+            username,
+            email
+          )
+        `)
         .eq('room_id', activeRoom.id)
         .order('created_at');
 
@@ -78,35 +91,7 @@ const ChatInterface: React.FC = () => {
       }
 
       console.log('Messages data:', messagesData);
-
-      const userIds = [...new Set(messagesData?.map(msg => msg.user_id) || [])];
-      console.log('User IDs in messages:', userIds);
-
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, username, email')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('Error fetching user profiles:', profilesError);
-      }
-
-      console.log('Profiles data:', profilesData);
-
-      const messagesWithProfiles = (messagesData || []).map((message) => {
-        const userProfile = profilesData?.find(profile => profile.id === message.user_id);
-        return {
-          ...message,
-          id: message.id.toString(),
-          user_profile: userProfile || { 
-            username: `User ${message.user_id.slice(0, 8)}`, 
-            email: 'unknown@email.com' 
-          }
-        };
-      });
-
-      console.log('Messages with profiles:', messagesWithProfiles);
-      setMessages(messagesWithProfiles);
+      setMessages(messagesData || []);
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred.');
@@ -125,10 +110,9 @@ const ChatInterface: React.FC = () => {
       const { error } = await supabase
         .from('messages')
         .insert({
-          content: newMessage,
+          content: newMessage.trim(),
           room_id: activeRoom.id,
           user_id: user.id,
-          created_at: new Date().toISOString(),
         });
 
       if (error) {
@@ -184,6 +168,17 @@ const ChatInterface: React.FC = () => {
       supabase.removeChannel(messagesChannel);
     };
   }, [activeRoom, fetchMessages]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading chat rooms...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-white">
@@ -274,16 +269,16 @@ const ChatInterface: React.FC = () => {
                     <Avatar className="h-8 w-8 mt-0.5">
                       <AvatarImage src="" />
                       <AvatarFallback className="bg-gray-500 text-white text-xs">
-                        {message.user_profile?.username?.[0]?.toUpperCase() || 
-                         message.user_profile?.email?.[0]?.toUpperCase() || 
+                        {message.profiles?.username?.[0]?.toUpperCase() || 
+                         message.profiles?.email?.[0]?.toUpperCase() || 
                          'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline space-x-2">
                         <span className="text-sm font-medium text-gray-900">
-                          {message.user_profile?.username || 
-                           message.user_profile?.email?.split('@')[0] || 
+                          {message.profiles?.username || 
+                           message.profiles?.email?.split('@')[0] || 
                            'Unknown User'}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -304,16 +299,14 @@ const ChatInterface: React.FC = () => {
 
             {/* Message Input */}
             <div className="border-t border-gray-200 p-4 bg-white">
-              <div className="flex items-end space-x-2">
-                <div className="flex-1 min-w-0">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={`Message #${activeRoom.name}`}
-                    className="resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
+              <div className="flex items-center space-x-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={`Message #${activeRoom.name}`}
+                  className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
                 <Button 
                   onClick={sendMessage}
                   disabled={!newMessage.trim()}
