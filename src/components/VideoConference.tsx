@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,7 @@ interface VideoConferenceProps {
 }
 
 interface Message {
-  id: string;
+  id: number; // Changed from string to number to match database
   content: string;
   created_at: string;
   user_id: string;
