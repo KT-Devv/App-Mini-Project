@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ interface Resource {
   description: string;
   file_url: string;
   file_type: string;
-  file_size: string;
+  size: number;
   subject: string;
   downloads: number;
   created_at: string;
@@ -63,9 +64,11 @@ const ResourceHub = () => {
       .select('id, username')
       .in('id', userIds);
 
-    // Combine resources with profile data
+    // Combine resources with profile data and format size
     const resourcesWithProfiles = resourcesData?.map(resource => ({
       ...resource,
+      size: resource.size || 0,
+      downloads: resource.downloads || 0,
       profiles: profilesData?.find(profile => profile.id === resource.uploaded_by) || { username: 'Unknown' }
     })) || [];
 
@@ -93,14 +96,14 @@ const ResourceHub = () => {
       // For demo purposes, we'll simulate file upload
       // In a real app, you'd upload to Supabase Storage
       const fileUrl = `demo-files/${selectedFile.name}`;
-      const fileSize = `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`;
+      const fileSizeInBytes = selectedFile.size;
 
       const { error } = await supabase
         .from('resources')
         .insert({
           ...newResource,
           file_url: fileUrl,
-          file_size: fileSize,
+          size: fileSizeInBytes,
           uploaded_by: user.id
         });
 
@@ -134,6 +137,14 @@ const ResourceHub = () => {
       toast.success('Download started!');
       fetchResources();
     }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (loading) {
@@ -258,7 +269,7 @@ const ResourceHub = () => {
               
               <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                 <span>Uploaded by {resource.profiles?.username || 'Unknown'}</span>
-                <span>{resource.file_size}</span>
+                <span>{formatFileSize(resource.size)}</span>
               </div>
               
               <div className="flex items-center justify-between">
