@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +16,10 @@ interface VideoConferenceProps {
 }
 
 interface Message {
-  id: number; // Changed from string to number to match database
+  id: string;
   content: string;
   created_at: string;
-  user_id: string;
+  sender_id: string;
   profiles?: {
     username: string;
     email: string;
@@ -26,7 +27,7 @@ interface Message {
 }
 
 interface Participant {
-  id: string;
+  session_id: string;
   user_id: string;
   joined_at: string;
   profiles?: {
@@ -80,7 +81,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
           table: 'messages'
         },
         (payload) => {
-          if (payload.new.room_id === sessionId) {
+          if (payload.new.chat_id === sessionId) {
             fetchMessages();
           }
         }
@@ -125,10 +126,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const fetchParticipants = async () => {
     try {
-      // First get participants
+      // Get participants
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
-        .select('id, user_id, joined_at')
+        .select('session_id, user_id, joined_at')
         .eq('session_id', sessionId);
 
       if (participantsError) {
@@ -180,13 +181,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
           id,
           content,
           created_at,
-          user_id,
-          profiles!messages_user_id_fkey (
+          sender_id,
+          profiles!messages_sender_id_fkey (
             username,
             email
           )
         `)
-        .eq('room_id', sessionId)
+        .eq('chat_id', sessionId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -208,8 +209,8 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         .from('messages')
         .insert({
           content: newMessage.trim(),
-          room_id: sessionId,
-          user_id: user.id
+          chat_id: sessionId,
+          sender_id: user.id
         });
 
       if (error) {
@@ -352,7 +353,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
             {/* Participants Grid */}
             {participants.slice(0, 3).map((participant) => (
-              <Card key={participant.id} className="relative bg-gray-800 border-gray-700">
+              <Card key={participant.user_id} className="relative bg-gray-800 border-gray-700">
                 <CardContent className="p-0 h-full flex items-center justify-center">
                   <div className="text-center">
                     <Avatar className="h-16 w-16 mx-auto mb-2">

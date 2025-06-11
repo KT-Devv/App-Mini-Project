@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,19 +10,17 @@ import { toast } from 'sonner';
 
 interface ChatRoom {
   id: string;
-  name: string;
-  subject: string;
-  description: string;
-  color: string;
+  title: string;
   created_at: string;
+  is_group: boolean;
 }
 
 interface Message {
-  id: number; // Changed from string to number to match database
+  id: string;
   content: string;
   created_at: string;
-  user_id: string;
-  room_id: string;
+  sender_id: string;
+  chat_id: string;
   profiles?: {
     username: string;
     email: string;
@@ -39,7 +38,7 @@ const ChatInterface: React.FC = () => {
   const fetchChatRooms = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('chat_rooms')
+        .from('chats')
         .select('*')
         .order('created_at');
 
@@ -73,14 +72,14 @@ const ChatInterface: React.FC = () => {
           id,
           content,
           created_at,
-          user_id,
-          room_id,
-          profiles!messages_user_id_fkey (
+          sender_id,
+          chat_id,
+          profiles!messages_sender_id_fkey (
             username,
             email
           )
         `)
-        .eq('room_id', activeRoom.id)
+        .eq('chat_id', activeRoom.id)
         .order('created_at');
 
       if (messagesError) {
@@ -99,7 +98,7 @@ const ChatInterface: React.FC = () => {
 
   const joinRoom = useCallback((room: ChatRoom) => {
     setActiveRoom(room);
-    console.log(`Joined room: ${room.name}`);
+    console.log(`Joined room: ${room.title}`);
   }, []);
 
   const sendMessage = async () => {
@@ -110,8 +109,8 @@ const ChatInterface: React.FC = () => {
         .from('messages')
         .insert({
           content: newMessage.trim(),
-          room_id: activeRoom.id,
-          user_id: user.id,
+          chat_id: activeRoom.id,
+          sender_id: user.id,
         });
 
       if (error) {
@@ -154,7 +153,7 @@ const ChatInterface: React.FC = () => {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `room_id=eq.${activeRoom.id}`
+          filter: `chat_id=eq.${activeRoom.id}`
         },
         (payload) => {
           console.log('New message received:', payload);
@@ -211,7 +210,7 @@ const ChatInterface: React.FC = () => {
                   }`}
                 >
                   <Hash className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">{room.name}</span>
+                  <span className="truncate">{room.title}</span>
                 </button>
               ))}
             </div>
@@ -248,10 +247,7 @@ const ChatInterface: React.FC = () => {
             <div className="h-16 border-b border-gray-200 flex items-center px-6 bg-white">
               <div className="flex items-center space-x-2">
                 <Hash className="h-5 w-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">{activeRoom.name}</h2>
-              </div>
-              <div className="ml-auto text-sm text-gray-500">
-                {activeRoom.description}
+                <h2 className="text-lg font-semibold text-gray-900">{activeRoom.title}</h2>
               </div>
             </div>
 
@@ -303,7 +299,7 @@ const ChatInterface: React.FC = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={`Message #${activeRoom.name}`}
+                  placeholder={`Message #${activeRoom.title}`}
                   className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
                 <Button 

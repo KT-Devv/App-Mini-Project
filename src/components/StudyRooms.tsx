@@ -26,6 +26,7 @@ interface StudySession {
   max_participants: number;
   created_at: string;
   scheduled_for: string;
+  start_time: string;
   session_url: string;
   status: string;
   profiles?: {
@@ -102,6 +103,7 @@ const StudyRooms = () => {
           max_participants,
           created_at,
           scheduled_for,
+          start_time,
           session_url,
           status,
           created_by,
@@ -134,6 +136,8 @@ const StudyRooms = () => {
       // Map sessions with profiles and participants
       const sessionsWithProfiles = (sessionsData || []).map((session) => ({
         ...session,
+        session_url: session.session_url || '',
+        status: session.status || 'scheduled',
         profiles: profilesData?.find((profile) => profile.id === session.created_by) || { username: 'Unknown User' },
         session_participants: session.session_participants?.map((participant) => ({
           session_id: participant.session_id,
@@ -184,6 +188,7 @@ const StudyRooms = () => {
           description: newSession.description.trim(),
           max_participants: newSession.max_participants,
           scheduled_for: newSession.scheduled_for || null,
+          start_time: new Date().toISOString(),
           session_url: sessionUrl,
           status: 'live',
           created_by: user.id,
@@ -212,7 +217,11 @@ const StudyRooms = () => {
         });
         
         // Show share modal for the newly created session
-        setSelectedSession({ ...data, session_participants: [], profiles: { username: user.email?.split('@')[0] || 'You' } });
+        setSelectedSession({ 
+          ...data, 
+          session_participants: [], 
+          profiles: { username: user.email?.split('@')[0] || 'You' } 
+        });
         setShowShareModal(true);
       }
     } catch (error) {
