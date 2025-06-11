@@ -9,79 +9,96 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      chat_rooms: {
+      chat_participants: {
         Row: {
-          color: string | null
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          subject: string
+          chat_id: string
+          joined_at: string
+          user_id: string
         }
         Insert: {
-          color?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          subject: string
+          chat_id: string
+          joined_at?: string
+          user_id: string
         }
         Update: {
-          color?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
+          chat_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          is_group: boolean | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
           id?: string
-          name?: string
-          subject?: string
+          is_group?: boolean | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_group?: boolean | null
+          title?: string
         }
         Relationships: []
       }
       messages: {
         Row: {
+          attachments: string[] | null
+          chat_id: string | null
           content: string
-          created_at: string | null
-          group_id: number | null
-          id: number
-          room_id: string | null
-          user_id: string
+          created_at: string
+          id: string
+          sender_id: string | null
         }
         Insert: {
+          attachments?: string[] | null
+          chat_id?: string | null
           content: string
-          created_at?: string | null
-          group_id?: number | null
-          id?: number
-          room_id?: string | null
-          user_id: string
+          created_at?: string
+          id?: string
+          sender_id?: string | null
         }
         Update: {
+          attachments?: string[] | null
+          chat_id?: string | null
           content?: string
-          created_at?: string | null
-          group_id?: number | null
-          id?: number
-          room_id?: string | null
-          user_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "messages_group_id_fkey"
-            columns: ["group_id"]
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
             isOneToOne: false
-            referencedRelation: "study_groups"
+            referencedRelation: "chats"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -91,116 +108,112 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string | null
+          created_at: string
           email: string
           id: string
-          updated_at: string | null
           username: string
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string | null
+          created_at?: string
           email: string
           id: string
-          updated_at?: string | null
           username: string
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string
           id?: string
-          updated_at?: string | null
           username?: string
         }
         Relationships: []
       }
+      resource_tags: {
+        Row: {
+          resource_id: string
+          tag: string
+        }
+        Insert: {
+          resource_id: string
+          tag: string
+        }
+        Update: {
+          resource_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_tags_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resources: {
         Row: {
-          created_at: string | null
+          created_at: string
           description: string | null
           downloads: number | null
-          file_size: string | null
-          file_type: string | null
-          file_url: string | null
+          file_type: string
+          file_url: string
           id: string
+          size: number
           subject: string
           title: string
           uploaded_by: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           downloads?: number | null
-          file_size?: string | null
-          file_type?: string | null
-          file_url?: string | null
+          file_type: string
+          file_url: string
           id?: string
+          size: number
           subject: string
           title: string
           uploaded_by?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           downloads?: number | null
-          file_size?: string | null
-          file_type?: string | null
-          file_url?: string | null
+          file_type?: string
+          file_url?: string
           id?: string
+          size?: number
           subject?: string
           title?: string
           uploaded_by?: string | null
         }
-        Relationships: []
-      }
-      room_members: {
-        Row: {
-          id: string
-          joined_at: string | null
-          room_id: string | null
-          user_id: string | null
-        }
-        Insert: {
-          id?: string
-          joined_at?: string | null
-          room_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          id?: string
-          joined_at?: string | null
-          room_id?: string | null
-          user_id?: string | null
-        }
         Relationships: [
           {
-            foreignKeyName: "room_members_room_id_fkey"
-            columns: ["room_id"]
+            foreignKeyName: "resources_uploaded_by_fkey"
+            columns: ["uploaded_by"]
             isOneToOne: false
-            referencedRelation: "chat_rooms"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
       session_participants: {
         Row: {
-          id: string
-          joined_at: string | null
-          session_id: string | null
-          user_id: string | null
+          joined_at: string
+          session_id: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          joined_at?: string | null
-          session_id?: string | null
-          user_id?: string | null
+          joined_at?: string
+          session_id: string
+          user_id: string
         }
         Update: {
-          id?: string
-          joined_at?: string | null
-          session_id?: string | null
-          user_id?: string | null
+          joined_at?: string
+          session_id?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -210,99 +223,67 @@ export type Database = {
             referencedRelation: "study_sessions"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      study_groups: {
-        Row: {
-          creator_id: string | null
-          id: number
-          name: string
-          subject: string
-        }
-        Insert: {
-          creator_id?: string | null
-          id?: number
-          name: string
-          subject: string
-        }
-        Update: {
-          creator_id?: string | null
-          id?: number
-          name?: string
-          subject?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "study_groups_creator_id_fkey"
-            columns: ["creator_id"]
+            foreignKeyName: "session_participants_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
       study_sessions: {
         Row: {
-          created_at: string | null
+          created_at: string
           created_by: string | null
           description: string | null
+          end_time: string | null
+          host_id: string | null
           id: string
           is_active: boolean | null
           max_participants: number | null
           scheduled_for: string | null
-          session_url: string | null
-          status: string | null
+          start_time: string
           subject: string
           title: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
+          end_time?: string | null
+          host_id?: string | null
           id?: string
           is_active?: boolean | null
           max_participants?: number | null
           scheduled_for?: string | null
-          session_url?: string | null
-          status?: string | null
+          start_time: string
           subject: string
           title: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
+          end_time?: string | null
+          host_id?: string | null
           id?: string
           is_active?: boolean | null
           max_participants?: number | null
           scheduled_for?: string | null
-          session_url?: string | null
-          status?: string | null
+          start_time?: string
           subject?: string
           title?: string
         }
-        Relationships: []
-      }
-      users: {
-        Row: {
-          created_at: string | null
-          email: string
-          id: string
-          username: string
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          id: string
-          username: string
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          id?: string
-          username?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
