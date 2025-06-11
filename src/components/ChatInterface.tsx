@@ -65,7 +65,6 @@ const ChatInterface: React.FC = () => {
     try {
       console.log('Fetching messages for room:', activeRoom.id);
       
-      // First get messages
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
@@ -80,7 +79,6 @@ const ChatInterface: React.FC = () => {
 
       console.log('Messages data:', messagesData);
 
-      // Then get user profiles for all users who sent messages
       const userIds = [...new Set(messagesData?.map(msg => msg.user_id) || [])];
       console.log('User IDs in messages:', userIds);
 
@@ -95,7 +93,6 @@ const ChatInterface: React.FC = () => {
 
       console.log('Profiles data:', profilesData);
 
-      // Combine messages with user profiles
       const messagesWithProfiles = (messagesData || []).map((message) => {
         const userProfile = profilesData?.find(profile => profile.id === message.user_id);
         return {
@@ -141,7 +138,6 @@ const ChatInterface: React.FC = () => {
       }
 
       setNewMessage("");
-      fetchMessages();
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred.');
@@ -162,6 +158,32 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!activeRoom) return;
+
+    const messagesChannel = supabase
+      .channel(`messages-${activeRoom.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${activeRoom.id}`
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [activeRoom, fetchMessages]);
 
   return (
     <div className="flex h-screen bg-white">

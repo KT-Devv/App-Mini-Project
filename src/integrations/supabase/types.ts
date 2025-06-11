@@ -250,6 +250,8 @@ export type Database = {
           is_active: boolean | null
           max_participants: number | null
           scheduled_for: string | null
+          session_url: string | null
+          status: string | null
           subject: string
           title: string
         }
@@ -261,6 +263,8 @@ export type Database = {
           is_active?: boolean | null
           max_participants?: number | null
           scheduled_for?: string | null
+          session_url?: string | null
+          status?: string | null
           subject: string
           title: string
         }
@@ -272,6 +276,8 @@ export type Database = {
           is_active?: boolean | null
           max_participants?: number | null
           scheduled_for?: string | null
+          session_url?: string | null
+          status?: string | null
           subject?: string
           title?: string
         }
