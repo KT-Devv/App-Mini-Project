@@ -125,28 +125,46 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const fetchParticipants = async () => {
     try {
-      const { data, error } = await supabase
+      // First get participants
+      const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
-        .select(`
-          id,
-          user_id,
-          joined_at,
-          profiles!session_participants_user_id_fkey (
-            username,
-            email
-          )
-        `)
+        .select('id, user_id, joined_at')
         .eq('session_id', sessionId);
 
-      if (error) {
-        console.error('Error fetching participants:', error);
+      if (participantsError) {
+        console.error('Error fetching participants:', participantsError);
         return;
       }
 
-      setParticipants(data || []);
+      // Then get profiles for each participant
+      if (participantsData && participantsData.length > 0) {
+        const userIds = participantsData.map(p => p.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, email')
+          .in('id', userIds);
 
-      // Check if session should end (no participants left)
-      if (data && data.length === 0) {
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+
+        // Combine participants with their profiles
+        const participantsWithProfiles = participantsData.map(participant => ({
+          ...participant,
+          profiles: profilesData?.find(profile => profile.id === participant.user_id) || {
+            username: 'Unknown User',
+            email: 'unknown@example.com'
+          }
+        }));
+
+        setParticipants(participantsWithProfiles);
+
+        // Check if session should end (no participants left)
+        if (participantsWithProfiles.length === 0) {
+          await endSession();
+        }
+      } else {
+        setParticipants([]);
         await endSession();
       }
     } catch (error) {
