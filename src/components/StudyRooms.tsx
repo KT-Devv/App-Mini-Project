@@ -104,8 +104,6 @@ const StudyRooms = () => {
           created_at,
           scheduled_for,
           start_time,
-          session_url,
-          status,
           created_by,
           session_participants (
             session_id,
@@ -133,17 +131,13 @@ const StudyRooms = () => {
 
       console.log('Profiles data:', profilesData);
 
-      // Map sessions with profiles and participants
+      // Map sessions with profiles and participants, adding missing fields
       const sessionsWithProfiles = (sessionsData || []).map((session) => ({
         ...session,
-        session_url: session.session_url || '',
-        status: session.status || 'scheduled',
+        session_url: `${window.location.origin}/session/${session.id}`, // Generate session URL
+        status: session.is_active ? 'live' : 'scheduled', // Derive status from is_active
         profiles: profilesData?.find((profile) => profile.id === session.created_by) || { username: 'Unknown User' },
-        session_participants: session.session_participants?.map((participant) => ({
-          session_id: participant.session_id,
-          user_id: participant.user_id,
-          joined_at: participant.joined_at,
-        })) || [],
+        session_participants: session.session_participants || [],
       }));
 
       setSessions(sessionsWithProfiles);
@@ -174,10 +168,7 @@ const StudyRooms = () => {
 
     setCreating(true);
     
-    // Generate a unique session URL
-    const sessionUrl = `${window.location.origin}/session/${crypto.randomUUID()}`;
-    
-    console.log('Creating session with data:', { ...newSession, created_by: user.id, session_url: sessionUrl });
+    console.log('Creating session with data:', { ...newSession, created_by: user.id });
 
     try {
       const { data, error } = await supabase
@@ -189,8 +180,6 @@ const StudyRooms = () => {
           max_participants: newSession.max_participants,
           scheduled_for: newSession.scheduled_for || null,
           start_time: new Date().toISOString(),
-          session_url: sessionUrl,
-          status: 'live',
           created_by: user.id,
           is_active: true
         })
@@ -219,6 +208,8 @@ const StudyRooms = () => {
         // Show share modal for the newly created session
         setSelectedSession({ 
           ...data, 
+          session_url: `${window.location.origin}/session/${data.id}`,
+          status: 'live',
           session_participants: [], 
           profiles: { username: user.email?.split('@')[0] || 'You' } 
         });
