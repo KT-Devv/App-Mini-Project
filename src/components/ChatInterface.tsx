@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +34,79 @@ const ChatInterface: React.FC = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const fetchChatRooms = useCallback(async () => {
+  const ensureUserInDefaultChats = useCallback(async () => {
+    if (!user) return;
+
     try {
+      // Get all chat rooms
+      const { data: allChats, error: chatsError } = await supabase
+        .from('chats')
+        .select('*');
+
+      if (chatsError) {
+        console.error('Error fetching all chats:', chatsError);
+        return;
+      }
+
+      // Get user's current participations
+      const { data: userParticipations, error: participationsError } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id);
+
+      if (participationsError) {
+        console.error('Error fetching user participations:', participationsError);
+        return;
+      }
+
+      const participatingChatIds = userParticipations?.map(p => p.chat_id) || [];
+      const chatsToJoin = allChats?.filter(chat => !participatingChatIds.includes(chat.id)) || [];
+
+      // Add user to chats they're not already in
+      if (chatsToJoin.length > 0) {
+        const insertData = chatsToJoin.map(chat => ({
+          chat_id: chat.id,
+          user_id: user.id
+        }));
+
+        const { error: insertError } = await supabase
+          .from('chat_participants')
+          .insert(insertData);
+
+        if (insertError) {
+          console.error('Error joining chats:', insertError);
+        } else {
+          console.log(`Joined ${chatsToJoin.length} new chat rooms`);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error ensuring user in chats:', err);
+    }
+  }, [user]);
+
+  const fetchChatRooms = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // First ensure user is in default chats
+      await ensureUserInDefaultChats();
+
+      // Then fetch chats user is participating in
       const { data, error } = await supabase
         .from('chats')
-        .select('*')
+        .select(`
+          id,
+          title,
+          created_at,
+          is_group,
+          chat_participants!inner (
+            user_id
+          )
+        `)
+        .eq('chat_participants.user_id', user.id)
         .order('created_at');
 
       if (error) {
@@ -48,6 +115,7 @@ const ChatInterface: React.FC = () => {
         return;
       }
 
+      console.log('Fetched chat rooms:', data);
       setChatRooms(data || []);
       if (data && data.length > 0 && !activeRoom) {
         setActiveRoom(data[0]);
@@ -58,7 +126,7 @@ const ChatInterface: React.FC = () => {
       toast.error('An unexpected error occurred.');
       setLoading(false);
     }
-  }, [activeRoom]);
+  }, [user, activeRoom, ensureUserInDefaultChats]);
 
   const fetchMessages = useCallback(async () => {
     if (!activeRoom) return;
@@ -178,6 +246,17 @@ const ChatInterface: React.FC = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Authentication Required</h3>
+          <p className="text-gray-500">Please log in to access the chat rooms.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
@@ -199,20 +278,24 @@ const ChatInterface: React.FC = () => {
             </div>
             
             <div className="space-y-1">
-              {chatRooms.map((room) => (
-                <button
-                  key={room.id}
-                  onClick={() => joinRoom(room)}
-                  className={`w-full flex items-center px-2 py-1.5 rounded text-left text-sm transition-colors ${
-                    activeRoom?.id === room.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                  }`}
-                >
-                  <Hash className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">{room.title}</span>
-                </button>
-              ))}
+              {chatRooms.length === 0 ? (
+                <p className="text-slate-400 text-sm py-4">No chat rooms available</p>
+              ) : (
+                chatRooms.map((room) => (
+                  <button
+                    key={room.id}
+                    onClick={() => joinRoom(room)}
+                    className={`w-full flex items-center px-2 py-1.5 rounded text-left text-sm transition-colors ${
+                      activeRoom?.id === room.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <Hash className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">{room.title}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
