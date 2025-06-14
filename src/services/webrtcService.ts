@@ -14,7 +14,7 @@ export class WebRTCService {
   private localStream: MediaStream | null = null;
   private sessionId: string;
   private userId: string;
-  private channel: any;
+  private channel: any = null;
   private onRemoteStreamCallback?: (userId: string, stream: MediaStream) => void;
   private onUserLeftCallback?: (userId: string) => void;
 
@@ -44,19 +44,27 @@ export class WebRTCService {
   }
 
   private setupSignalingChannel() {
+    // Don't create a new channel if one already exists
+    if (this.channel) {
+      console.log('Channel already exists, skipping setup');
+      return;
+    }
+
     this.channel = supabase.channel(`webrtc-${this.sessionId}`)
       .on('broadcast', { event: 'signaling' }, (payload) => {
         this.handleSignalingMessage(payload.payload as SignalingMessage);
       })
-      .subscribe();
-
-    // Announce user joined
-    this.sendSignalingMessage({
-      type: 'user-joined',
-      data: {},
-      from: this.userId,
-      sessionId: this.sessionId
-    });
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Only announce user joined after successful subscription
+          this.sendSignalingMessage({
+            type: 'user-joined',
+            data: {},
+            from: this.userId,
+            sessionId: this.sessionId
+          });
+        }
+      });
   }
 
   private async handleSignalingMessage(message: SignalingMessage) {
@@ -186,11 +194,13 @@ export class WebRTCService {
   }
 
   private sendSignalingMessage(message: SignalingMessage) {
-    this.channel.send({
-      type: 'broadcast',
-      event: 'signaling',
-      payload: message
-    });
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'signaling',
+        payload: message
+      });
+    }
   }
 
   onRemoteStream(callback: (userId: string, stream: MediaStream) => void) {
@@ -225,12 +235,14 @@ export class WebRTCService {
 
   cleanup() {
     // Send user left message
-    this.sendSignalingMessage({
-      type: 'user-left',
-      data: {},
-      from: this.userId,
-      sessionId: this.sessionId
-    });
+    if (this.channel) {
+      this.sendSignalingMessage({
+        type: 'user-left',
+        data: {},
+        from: this.userId,
+        sessionId: this.sessionId
+      });
+    }
 
     // Close all peer connections
     this.peerConnections.forEach(pc => pc.close());
@@ -244,6 +256,7 @@ export class WebRTCService {
     // Unsubscribe from channel
     if (this.channel) {
       supabase.removeChannel(this.channel);
+      this.channel = null;
     }
   }
 }

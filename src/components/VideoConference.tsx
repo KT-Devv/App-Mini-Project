@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,6 +50,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcServiceRef = useRef<WebRTCService | null>(null);
+  const channelsRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -62,8 +62,16 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
     return () => {
       cleanupWebRTC();
+      cleanupChannels();
     };
   }, [sessionId, user]);
+
+  const cleanupChannels = () => {
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+  };
 
   const initializeWebRTC = async () => {
     if (!user || !localVideoRef.current) return;
@@ -109,6 +117,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   };
 
   const setupRealtimeSubscriptions = () => {
+    // Clean up any existing channels first
+    cleanupChannels();
+
     const participantsChannel = supabase
       .channel(`session-participants-${sessionId}`)
       .on(
@@ -142,10 +153,8 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(messagesChannel);
-    };
+    // Store channels for cleanup
+    channelsRef.current = [participantsChannel, messagesChannel];
   };
 
   const fetchParticipants = async () => {
