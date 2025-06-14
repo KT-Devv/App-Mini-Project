@@ -40,6 +40,7 @@ const ChatInterface: React.FC = () => {
 
   const fetchChatRooms = async () => {
     try {
+      console.log('Fetching chat rooms...');
       const { data, error } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -48,17 +49,18 @@ const ChatInterface: React.FC = () => {
 
       if (error) {
         console.error('Error fetching chat rooms:', error);
-        toast.error('Failed to load chat rooms');
+        toast.error(`Failed to load chat rooms: ${error.message}`);
         return;
       }
 
+      console.log('Chat rooms fetched successfully:', data);
       setChatRooms(data || []);
       if (data && data.length > 0 && !activeRoom) {
         setActiveRoom(data[0]);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred');
+      toast.error('An unexpected error occurred while fetching chat rooms');
     } finally {
       setLoading(false);
     }
@@ -68,6 +70,7 @@ const ChatInterface: React.FC = () => {
     if (!activeRoom) return;
 
     try {
+      console.log('Fetching messages for room:', activeRoom.id);
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
@@ -76,14 +79,15 @@ const ChatInterface: React.FC = () => {
 
       if (error) {
         console.error('Error fetching messages:', error);
-        toast.error('Failed to load messages');
+        toast.error(`Failed to load messages: ${error.message}`);
         return;
       }
 
+      console.log('Messages fetched successfully:', data);
       setMessages(data || []);
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred');
+      toast.error('An unexpected error occurred while fetching messages');
     }
   };
 
@@ -91,6 +95,7 @@ const ChatInterface: React.FC = () => {
     if (!newMessage.trim() || !activeRoom || !user) return;
 
     try {
+      console.log('Sending message:', { content: newMessage.trim(), room_id: activeRoom.id, user_id: user.id });
       const { error } = await supabase
         .from('chat_messages')
         .insert({
@@ -101,43 +106,64 @@ const ChatInterface: React.FC = () => {
 
       if (error) {
         console.error('Error sending message:', error);
-        toast.error('Failed to send message');
+        toast.error(`Failed to send message: ${error.message}`);
         return;
       }
 
+      console.log('Message sent successfully');
       setNewMessage("");
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred');
+      toast.error('An unexpected error occurred while sending message');
     }
   };
 
   const createRoom = async () => {
-    if (!newRoomName.trim() || !user) return;
+    if (!newRoomName.trim() || !user) {
+      console.log('Create room validation failed:', { name: newRoomName.trim(), user: !!user });
+      toast.error('Please enter a room name and ensure you are logged in');
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      console.log('Creating room with data:', {
+        name: newRoomName.trim(),
+        description: newRoomDescription.trim() || null,
+        created_by: user.id,
+        is_active: true
+      });
+
+      const { data, error } = await supabase
         .from('chat_rooms')
         .insert({
           name: newRoomName.trim(),
           description: newRoomDescription.trim() || null,
           created_by: user.id,
-        });
+          is_active: true
+        })
+        .select()
+        .single();
 
       if (error) {
-        console.error('Error creating room:', error);
-        toast.error('Failed to create room');
+        console.error('Detailed error creating room:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        toast.error(`Failed to create room: ${error.message}`);
         return;
       }
 
+      console.log('Room created successfully:', data);
       setNewRoomName("");
       setNewRoomDescription("");
       setIsCreateRoomOpen(false);
       fetchChatRooms();
       toast.success('Room created successfully!');
     } catch (err) {
-      console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred');
+      console.error('Unexpected error creating room:', err);
+      toast.error('An unexpected error occurred while creating the room');
     }
   };
 
@@ -149,11 +175,13 @@ const ChatInterface: React.FC = () => {
   };
 
   const selectRoom = (room: ChatRoom) => {
+    console.log('Selecting room:', room);
     setActiveRoom(room);
     setMessages([]);
   };
 
   useEffect(() => {
+    console.log('Component mounted, user:', user);
     fetchChatRooms();
   }, []);
 
@@ -165,6 +193,7 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     if (!activeRoom) return;
 
+    console.log('Setting up real-time subscription for room:', activeRoom.id);
     const messageChannel = supabase
       .channel(`chat-messages-${activeRoom.id}`)
       .on(
@@ -175,19 +204,22 @@ const ChatInterface: React.FC = () => {
           table: 'chat_messages',
           filter: `room_id=eq.${activeRoom.id}`
         },
-        () => {
+        (payload) => {
+          console.log('Real-time message received:', payload);
           fetchMessages();
         }
       )
       .subscribe();
 
     return () => {
+      console.log('Cleaning up message subscription');
       supabase.removeChannel(messageChannel);
     };
   }, [activeRoom]);
 
   // Set up real-time subscription for room updates
   useEffect(() => {
+    console.log('Setting up real-time subscription for room updates');
     const roomChannel = supabase
       .channel('chat-rooms-updates')
       .on(
@@ -197,13 +229,15 @@ const ChatInterface: React.FC = () => {
           schema: 'public',
           table: 'chat_rooms'
         },
-        () => {
+        (payload) => {
+          console.log('Real-time room update received:', payload);
           fetchChatRooms();
         }
       )
       .subscribe();
 
     return () => {
+      console.log('Cleaning up room subscription');
       supabase.removeChannel(roomChannel);
     };
   }, []);
