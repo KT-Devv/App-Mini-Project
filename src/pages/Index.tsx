@@ -1,6 +1,5 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,32 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [notifications] = useState(3);
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-
-  // Redirect to welcome if not logged in
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/');
-    }
-  }, [user, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Brain className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-xl font-bold">Loading StudySphere...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null; // Will redirect to auth
-  }
+  const { user } = useAuth();
 
   const quickActions = [
     { title: 'Ask Question', description: 'Get help from peers', icon: MessageCircle, color: 'bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('chat') },
