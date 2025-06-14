@@ -4,7 +4,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Hash, Users, Plus, MessageCircle, ArrowLeft, Share2, UserPlus } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { Hash, Users, Plus, MessageCircle, ArrowLeft, Menu, Search, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -276,10 +277,11 @@ const ChatInterface: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 px-4 pb-20">
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 pb-20">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading chat rooms...</p>
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-6"></div>
+          <h3 className="text-xl font-semibold text-slate-800 mb-2">Loading Chat</h3>
+          <p className="text-slate-600">Connecting to your conversations...</p>
         </div>
       </div>
     );
@@ -287,63 +289,80 @@ const ChatInterface: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 px-4 pb-20">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-sm mx-auto">
-          <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h3>
-          <p className="text-gray-600">Please log in to access the chat rooms.</p>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 pb-20">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md mx-auto border border-slate-200">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <MessageCircle className="h-10 w-10 text-white" />
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Chat</h3>
+          <p className="text-slate-600 mb-6">Please log in to start chatting with your study groups.</p>
+          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+            Get Started
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col pb-20">
-      {/* Mobile Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex flex-col pb-20">
+      {/* Modern Header */}
+      <div className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-4">
             {activeRoom && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/20 p-2"
+                className="lg:hidden text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 onClick={() => setShowSidebar(true)}
               >
-                <Hash className="h-5 w-5" />
+                <Menu className="h-5 w-5" />
               </Button>
             )}
-            <div>
-              <h1 className="text-lg font-bold">
-                {activeRoom ? activeRoom.name : 'StudySphere Chat'}
-              </h1>
-              <p className="text-blue-100 text-sm">
-                {activeRoom ? activeRoom.description || 'Chat room' : 'Connect with your study group'}
-              </p>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <Hash className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">
+                  {activeRoom ? activeRoom.name : 'StudySphere Chat'}
+                </h1>
+                <p className="text-sm text-slate-500">
+                  {activeRoom ? (activeRoom.description || 'Study group chat') : 'Select a room to start chatting'}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {activeRoom && (
-              <InviteToRoomModal
-                roomId={activeRoom.id}
-                roomName={activeRoom.name}
-              />
+              <>
+                <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                  <Search className="h-4 w-4" />
+                </Button>
+                <InviteToRoomModal
+                  roomId={activeRoom.id}
+                  roomName={activeRoom.name}
+                />
+                <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </>
             )}
-            <MessageCircle className="h-6 w-6" />
           </div>
         </div>
       </div>
 
-      {/* Sidebar Overlay for Mobile */}
+      {/* Enhanced Sidebar Overlay */}
       {showSidebar && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setShowSidebar(false)}>
-          <div className="bg-white w-80 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowSidebar(false)}>
+          <div className="bg-white w-80 h-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold">Chat Rooms</h2>
-                  <p className="text-blue-100 text-sm">Select a room</p>
+                  <h2 className="text-xl font-bold">Chat Rooms</h2>
+                  <p className="text-blue-100 text-sm">Connect with your study groups</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -356,12 +375,12 @@ const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Friends and Create Room Section */}
-            <div className="p-4 border-b border-gray-200 space-y-3">
+            {/* Enhanced Friends and Create Room Section */}
+            <div className="p-6 border-b border-slate-200 bg-slate-50 space-y-4">
               <FriendsManager />
               <Dialog open={isCreateRoomOpen} onOpenChange={setIsCreateRoomOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md">
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Room
                   </Button>
@@ -372,7 +391,7 @@ const ChatInterface: React.FC = () => {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="roomName" className="block text-sm font-medium text-slate-700 mb-2">
                         Room Name
                       </label>
                       <Input
@@ -384,7 +403,7 @@ const ChatInterface: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label htmlFor="roomDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="roomDescription" className="block text-sm font-medium text-slate-700 mb-2">
                         Description (Optional)
                       </label>
                       <Textarea
@@ -396,7 +415,7 @@ const ChatInterface: React.FC = () => {
                         rows={3}
                       />
                     </div>
-                    <div className="flex justify-end space-x-2">
+                    <div className="flex justify-end space-x-3 pt-2">
                       <Button
                         variant="outline"
                         onClick={() => setIsCreateRoomOpen(false)}
@@ -406,9 +425,9 @@ const ChatInterface: React.FC = () => {
                       <Button
                         onClick={createRoom}
                         disabled={!newRoomName.trim()}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                       >
-                        Create
+                        Create Room
                       </Button>
                     </div>
                   </div>
@@ -416,47 +435,55 @@ const ChatInterface: React.FC = () => {
               </Dialog>
             </div>
 
-            {/* Rooms List */}
-            <div className="flex-1 overflow-y-auto p-2">
+            {/* Enhanced Rooms List */}
+            <div className="flex-1 overflow-y-auto p-4">
               {chatRooms.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm">No chat rooms available</p>
-                  <p className="text-gray-400 text-xs mt-1">Create one or get invited to join!</p>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Rooms Yet</h3>
+                  <p className="text-slate-500 text-sm mb-4">Create your first room or get invited to join conversations!</p>
                 </div>
               ) : (
                 <div className="space-y-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Active Rooms</h3>
                   {chatRooms.map((room) => (
                     <button
                       key={room.id}
                       onClick={() => selectRoom(room)}
-                      className={`w-full flex items-start p-3 rounded-lg text-left transition-all hover:bg-gray-50 ${
+                      className={`w-full flex items-center p-4 rounded-xl text-left transition-all duration-200 group ${
                         activeRoom?.id === room.id
-                          ? 'bg-blue-50 border-l-4 border-blue-600 shadow-sm'
-                          : 'hover:shadow-sm'
+                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md'
+                          : 'hover:bg-slate-50 border-2 border-transparent hover:shadow-sm'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg mr-3 ${
-                        activeRoom?.id === room.id ? 'bg-blue-600' : 'bg-gray-100'
+                      <div className={`p-3 rounded-xl mr-4 transition-all duration-200 ${
+                        activeRoom?.id === room.id 
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md' 
+                          : 'bg-slate-100 group-hover:bg-slate-200'
                       }`}>
                         <Hash className={`h-4 w-4 ${
-                          activeRoom?.id === room.id ? 'text-white' : 'text-gray-600'
+                          activeRoom?.id === room.id ? 'text-white' : 'text-slate-600'
                         }`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className={`font-medium truncate ${
-                            activeRoom?.id === room.id ? 'text-blue-900' : 'text-gray-900'
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`font-semibold truncate ${
+                            activeRoom?.id === room.id ? 'text-blue-900' : 'text-slate-900'
                           }`}>
                             {room.name}
                           </span>
+                          {activeRoom?.id === room.id && (
+                            <Badge className="bg-blue-100 text-blue-700 text-xs">Active</Badge>
+                          )}
                         </div>
                         {room.description && (
-                          <p className="text-xs text-gray-500 mt-1 truncate">
+                          <p className="text-xs text-slate-500 mb-2 truncate">
                             {room.description}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-slate-400">
                           Created {new Date(room.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -466,22 +493,22 @@ const ChatInterface: React.FC = () => {
               )}
             </div>
 
-            {/* User Info */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10">
+            {/* Enhanced User Info */}
+            <div className="p-6 border-t border-slate-200 bg-slate-50">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-12 w-12 ring-2 ring-white shadow-md">
                   <AvatarImage src="" />
-                  <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
                     {user?.email?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="font-semibold text-slate-900 truncate">
                     {user?.email?.split('@')[0] || 'User'}
                   </p>
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <p className="text-xs text-gray-500">Online</p>
+                  <div className="flex items-center mt-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
+                    <p className="text-xs text-slate-500">Online</p>
                   </div>
                 </div>
               </div>
@@ -490,17 +517,22 @@ const ChatInterface: React.FC = () => {
         </div>
       )}
 
-      {/* Main Chat Area */}
+      {/* Enhanced Main Chat Area */}
       {activeRoom ? (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {messages.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 max-w-sm mx-auto">
-                  <MessageCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
-                  <p className="text-gray-500">Be the first to start the conversation!</p>
+              <div className="text-center py-16">
+                <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200 max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <MessageCircle className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">Start the Conversation</h3>
+                  <p className="text-slate-600 mb-6">Be the first to share an idea, ask a question, or just say hello!</p>
+                  <div className="text-sm text-slate-500">
+                    Type @ to mention someone
+                  </div>
                 </div>
               </div>
             ) : (
@@ -514,30 +546,32 @@ const ChatInterface: React.FC = () => {
             )}
           </div>
 
-          {/* Message Input */}
-          <div className="bg-white border-t border-gray-200 p-4">
-            <UserMentionInput
-              value={newMessage}
-              onChange={setNewMessage}
-              onSend={sendMessage}
-              onKeyPress={handleKeyPress}
-              placeholder={`Message #${activeRoom.name}`}
-              disabled={false}
-            />
+          {/* Enhanced Message Input */}
+          <div className="bg-white border-t border-slate-200 p-6">
+            <div className="max-w-4xl mx-auto">
+              <UserMentionInput
+                value={newMessage}
+                onChange={setNewMessage}
+                onSend={sendMessage}
+                onKeyPress={handleKeyPress}
+                placeholder={`Message #${activeRoom.name}`}
+                disabled={false}
+              />
+            </div>
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-center max-w-sm mx-auto">
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-              <div className="p-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg mb-6">
-                <MessageCircle className="h-16 w-16 text-blue-600 mx-auto" />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center max-w-md mx-auto">
+            <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-200">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <MessageCircle className="h-10 w-10 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Welcome to StudySphere Chat</h3>
-              <p className="text-gray-600 mb-4">Tap the # button above to select a room and start chatting.</p>
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Welcome to StudySphere Chat</h3>
+              <p className="text-slate-600 mb-6">Connect with your study groups and collaborate in real-time.</p>
               <Button
                 onClick={() => setShowSidebar(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
               >
                 <Hash className="h-4 w-4 mr-2" />
                 Browse Rooms
