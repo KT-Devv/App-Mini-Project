@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Hash, Users, Plus, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,20 +75,35 @@ const ChatInterface: React.FC = () => {
 
     try {
       console.log('Fetching messages for room:', activeRoom.id);
-      const { data, error } = await supabase
-        .from('chat_messages_with_profiles')
-        .select('*')
+      // Query messages with a join to profiles for user information
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          profiles:user_id (
+            username,
+            email
+          )
+        `)
         .eq('room_id', activeRoom.id)
         .order('created_at');
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        toast.error(`Failed to load messages: ${error.message}`);
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
+        toast.error(`Failed to load messages: ${messagesError.message}`);
         return;
       }
 
-      console.log('Messages fetched successfully:', data);
-      setMessages(data || []);
+      // Transform the data to match our interface
+      const transformedMessages = (messagesData || []).map(msg => ({
+        ...msg,
+        username: msg.profiles?.username || msg.profiles?.email?.split('@')[0] || 'Unknown User',
+        display_name: msg.profiles?.username || msg.profiles?.email?.split('@')[0] || 'Unknown User',
+        avatar_url: null
+      }));
+
+      console.log('Messages fetched successfully:', transformedMessages);
+      setMessages(transformedMessages);
     } catch (err) {
       console.error('Unexpected error:', err);
       toast.error('An unexpected error occurred while fetching messages');

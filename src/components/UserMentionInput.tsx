@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface UserProfile {
   id: string;
   username: string;
-  display_name: string;
+  email: string;
 }
 
 interface UserMentionInputProps {
@@ -43,9 +43,10 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
 
   const fetchUsers = async () => {
     try {
+      // Use the existing profiles table instead of user_profiles
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, username, display_name');
+        .from('profiles')
+        .select('id, username, email');
       
       if (error) throw error;
       setUsers(data || []);
@@ -68,7 +69,7 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
       const query = mentionMatch[1].toLowerCase();
       const filtered = users.filter(user => 
         user.username.toLowerCase().includes(query) ||
-        user.display_name.toLowerCase().includes(query)
+        user.email.toLowerCase().includes(query)
       );
       
       setFilteredUsers(filtered);
@@ -190,10 +191,10 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
                   className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
                 >
                   <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                    {user.display_name[0]?.toUpperCase()}
+                    {user.username[0]?.toUpperCase() || user.email[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-medium text-sm">{user.display_name}</div>
+                    <div className="font-medium text-sm">{user.username}</div>
                     <div className="text-xs text-gray-500">@{user.username}</div>
                   </div>
                 </button>
