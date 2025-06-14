@@ -12,6 +12,15 @@ const config: CapacitorConfig = {
       launchShowDuration: 2000,
       backgroundColor: '#3B82F6',
       showSpinner: false
+    },
+    StatusBar: {
+      style: 'default',
+      backgroundColor: '#ffffff',
+      overlaysWebView: false
+    },
+    Keyboard: {
+      resize: 'ionic',
+      resizeOnFullScreen: true
     }
   }
 };
