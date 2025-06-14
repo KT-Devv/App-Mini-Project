@@ -123,7 +123,7 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen px-4 pb-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading profile...</p>
@@ -134,8 +134,8 @@ const Profile = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+      <div className="flex items-center justify-center h-screen px-4 pb-20">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-sm mx-auto">
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Please sign in</h3>
           <p className="text-gray-600">You need to be signed in to view your profile.</p>
         </div>
@@ -145,8 +145,8 @@ const Profile = () => {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+      <div className="flex items-center justify-center h-screen px-4 pb-20">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-sm mx-auto">
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Profile not found</h3>
           <p className="text-gray-600 mb-4">There was an issue loading your profile.</p>
           <Button onClick={fetchProfile} className="bg-blue-600 hover:bg-blue-700">
@@ -158,137 +158,141 @@ const Profile = () => {
   }
 
   return (
-    <div className="space-y-6 pb-20 p-4">
-      {/* Profile Header */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4 mb-6">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={profile.avatar_url} />
-              <AvatarFallback className="text-lg">
-                {profile.username.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold">{profile.username}</h2>
-              <p className="text-gray-600">{profile.email}</p>
-              <p className="text-sm text-gray-500 flex items-center mt-1">
-                <Calendar className="h-4 w-4 mr-1" />
+    <div className="min-h-screen bg-gray-50 px-4 pb-24 pt-4">
+      <div className="max-w-md mx-auto space-y-4">
+        {/* Profile Header */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center text-center mb-4">
+              <Avatar className="h-20 w-20 mb-3">
+                <AvatarImage src={profile.avatar_url} />
+                <AvatarFallback className="text-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  {profile.username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <h2 className="text-xl font-bold">{profile.username}</h2>
+              <p className="text-gray-600 text-sm">{profile.email}</p>
+              <p className="text-xs text-gray-500 flex items-center mt-1">
+                <Calendar className="h-3 w-3 mr-1" />
                 Joined {new Date(profile.created_at).toLocaleDateString()}
               </p>
             </div>
+
             <Button
               variant="outline"
               size="sm"
+              className="w-full"
               onClick={() => setEditing(!editing)}
             >
               <Edit className="h-4 w-4 mr-1" />
-              {editing ? 'Cancel' : 'Edit'}
+              {editing ? 'Cancel' : 'Edit Profile'}
             </Button>
-          </div>
 
-          {editing && (
-            <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  value={editedProfile.username}
-                  onChange={(e) => setEditedProfile({...editedProfile, username: e.target.value})}
-                />
+            {editing && (
+              <div className="space-y-3 mt-4 p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <Label htmlFor="username" className="text-sm">Username</Label>
+                  <Input
+                    id="username"
+                    value={editedProfile.username}
+                    onChange={(e) => setEditedProfile({...editedProfile, username: e.target.value})}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email" className="text-sm">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={editedProfile.email}
+                    onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex space-x-2 pt-2">
+                  <Button onClick={updateProfile} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                    Save
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={editedProfile.email}
-                  onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
-                />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activity Stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <MessageSquare className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+              <p className="text-xl font-bold">24</p>
+              <p className="text-xs text-gray-600">Messages Sent</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <FileText className="h-6 w-6 text-green-600 mx-auto mb-2" />
+              <p className="text-xl font-bold">8</p>
+              <p className="text-xs text-gray-600">Resources Shared</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Study Subjects */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center text-base">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Study Subjects
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="text-xs">Mathematics</Badge>
+              <Badge variant="secondary" className="text-xs">Physics</Badge>
+              <Badge variant="secondary" className="text-xs">Chemistry</Badge>
+              <Badge variant="secondary" className="text-xs">Computer Science</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                <MessageSquare className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">Posted in Mathematics Help</p>
+                  <p className="text-xs text-gray-500">2 hours ago</p>
+                </div>
               </div>
-              <div className="flex space-x-2">
-                <Button onClick={updateProfile} className="flex-1">
-                  Save Changes
-                </Button>
-                <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">
-                  Cancel
-                </Button>
+              <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">Uploaded Calculus Notes</p>
+                  <p className="text-xs text-gray-500">1 day ago</p>
+                </div>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Activity Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <MessageSquare className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">24</p>
-            <p className="text-sm text-gray-600">Messages Sent</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold">8</p>
-            <p className="text-sm text-gray-600">Resources Shared</p>
-          </CardContent>
-        </Card>
+        {/* Sign Out */}
+        <Button
+          variant="destructive"
+          className="w-full"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
       </div>
-
-      {/* Study Subjects */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <BookOpen className="h-5 w-5 mr-2" />
-            Study Subjects
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">Mathematics</Badge>
-            <Badge variant="secondary">Physics</Badge>
-            <Badge variant="secondary">Chemistry</Badge>
-            <Badge variant="secondary">Computer Science</Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <MessageSquare className="h-4 w-4 text-blue-600" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Posted in Mathematics Help</p>
-                <p className="text-xs text-gray-500">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <FileText className="h-4 w-4 text-green-600" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Uploaded Calculus Notes</p>
-                <p className="text-xs text-gray-500">1 day ago</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sign Out */}
-      <Button
-        variant="destructive"
-        className="w-full"
-        onClick={handleSignOut}
-      >
-        <LogOut className="h-4 w-4 mr-2" />
-        Sign Out
-      </Button>
     </div>
   );
 };
