@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ const Index = () => {
     const fetchUserProfile = async () => {
       if (user?.id) {
         const { data: profile } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('username')
           .eq('id', user.id)
           .single();
