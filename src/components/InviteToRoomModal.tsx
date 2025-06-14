@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -202,7 +203,10 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({ roomId, roomName 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button 
+          size="sm"
+          className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 shadow-sm transition-all duration-200 hover:shadow-md hover:from-blue-600 hover:to-purple-600"
+        >
           <UserPlus className="h-4 w-4 mr-2" />
           Invite
         </Button>
