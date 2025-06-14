@@ -22,13 +22,13 @@ interface Friend {
     username: string;
     email: string;
     avatar_url?: string;
-  };
+  } | null;
   user_profile?: {
     id: string;
     username: string;
     email: string;
     avatar_url?: string;
-  };
+  } | null;
 }
 
 interface InviteToRoomModalProps {
@@ -49,66 +49,43 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({ roomId, roomName 
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Fallback approach
+      const { data: friendsData, error: friendsError } = await supabase
         .from('friends')
-        .select(`
-          *,
-          friend_profile:profiles!friends_friend_id_fkey(id, username, email, avatar_url),
-          user_profile:profiles!friends_user_id_fkey(id, username, email, avatar_url)
-        `)
+        .select('*')
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
         .eq('status', 'accepted')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      const typedFriends = (data || []).map(friend => ({
+      if (friendsError) throw friendsError;
+
+      const userIds = new Set<string>();
+      friendsData?.forEach(friend => {
+        userIds.add(friend.user_id);
+        userIds.add(friend.friend_id);
+      });
+
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username, email, avatar_url')
+        .in('id', Array.from(userIds));
+
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      const friendsWithProfiles: Friend[] = (friendsData || []).map(friend => ({
         ...friend,
-        status: friend.status as 'pending' | 'accepted' | 'blocked'
+        status: friend.status as 'pending' | 'accepted' | 'blocked',
+        friend_profile: profilesMap.get(friend.friend_id) || null,
+        user_profile: profilesMap.get(friend.user_id) || null
       }));
-      
-      setFriends(typedFriends);
+
+      setFriends(friendsWithProfiles);
     } catch (error) {
-      console.error('Error fetching friends:', error);
-      // Fallback approach
-      try {
-        const { data: friendsData, error: friendsError } = await supabase
-          .from('friends')
-          .select('*')
-          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-          .eq('status', 'accepted')
-          .order('created_at', { ascending: false });
-
-        if (friendsError) throw friendsError;
-
-        const userIds = new Set<string>();
-        friendsData?.forEach(friend => {
-          userIds.add(friend.user_id);
-          userIds.add(friend.friend_id);
-        });
-
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, username, email, avatar_url')
-          .in('id', Array.from(userIds));
-
-        const profilesMap = new Map();
-        profilesData?.forEach(profile => {
-          profilesMap.set(profile.id, profile);
-        });
-
-        const friendsWithProfiles = friendsData?.map(friend => ({
-          ...friend,
-          status: friend.status as 'pending' | 'accepted' | 'blocked',
-          friend_profile: profilesMap.get(friend.friend_id),
-          user_profile: profilesMap.get(friend.user_id)
-        })) || [];
-
-        setFriends(friendsWithProfiles);
-      } catch (fallbackError) {
-        console.error('Error in fallback fetch:', fallbackError);
-        toast.error('Failed to load friends');
-      }
+      console.error('Error in fallback fetch:', error);
+      toast.error('Failed to load friends');
     }
   };
 

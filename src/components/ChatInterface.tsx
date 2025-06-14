@@ -41,7 +41,6 @@ const ChatInterface: React.FC = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomDescription, setNewRoomDescription] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
@@ -325,14 +324,10 @@ const ChatInterface: React.FC = () => {
           </div>
           <div className="flex items-center space-x-2">
             {activeRoom && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={() => setIsInviteModalOpen(true)}
-              >
-                <Share2 className="h-5 w-5" />
-              </Button>
+              <InviteToRoomModal
+                roomId={activeRoom.id}
+                roomName={activeRoom.name}
+              />
             )}
             <MessageCircle className="h-6 w-6" />
           </div>
@@ -550,16 +545,6 @@ const ChatInterface: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Invite Modal */}
-      {activeRoom && (
-        <InviteToRoomModal
-          isOpen={isInviteModalOpen}
-          onClose={() => setIsInviteModalOpen(false)}
-          roomId={activeRoom.id}
-          roomName={activeRoom.name}
-        />
       )}
     </div>
   );
