@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,29 +31,19 @@ const Profile = () => {
   const createProfile = async () => {
     if (!user) return null;
 
-    const username = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
-    const email = user.email || '';
+    console.log('Creating profile via edge function for user:', user.id);
 
-    console.log('Creating profile for user:', user.id, { username, email });
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        username,
-        email
-      })
-      .select()
-      .single();
+    // Invoke the edge function to create the profile
+    const { data, error } = await supabase.functions.invoke('create-profile');
 
     if (error) {
-      console.error('Error creating profile:', error);
-      toast.error('Failed to create profile');
+      console.error('Error creating profile via function:', error);
+      toast.error(`Failed to create profile: ${error.message}`);
       return null;
     }
-
-    console.log('Profile created successfully:', data);
-    return data;
+    
+    console.log('Profile created successfully via function:', data);
+    return data.profile;
   };
 
   const fetchProfile = useCallback(async () => {
