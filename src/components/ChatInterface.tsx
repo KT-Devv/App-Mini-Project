@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Send, Hash, Users, Plus, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -483,12 +483,13 @@ const ChatInterface: React.FC = () => {
             <div className="bg-white border-t border-gray-200 p-6">
               <div className="flex items-end space-x-3">
                 <div className="flex-1">
-                  <Input
+                  <Textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder={`Message #${activeRoom.name}`}
-                    className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                    className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg resize-none"
+                    rows={1}
                   />
                 </div>
                 <Button 
