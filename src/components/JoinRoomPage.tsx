@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,7 +78,7 @@ const JoinRoomPage: React.FC = () => {
           .eq('id', inviteData.invited_by)
           .single();
 
-        const enrichedData = {
+        const enrichedData: RoomInvitation = {
           ...inviteData,
           inviter_profile: profileData || { username: 'Unknown', email: 'unknown@example.com' }
         };

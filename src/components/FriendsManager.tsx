@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +16,13 @@ interface Friend {
   status: 'pending' | 'accepted' | 'blocked';
   created_at: string;
   friend_profile?: {
+    id: string;
     username: string;
     email: string;
     avatar_url?: string;
   };
   user_profile?: {
+    id: string;
     username: string;
     email: string;
     avatar_url?: string;
@@ -43,14 +44,20 @@ const FriendsManager: React.FC = () => {
         .from('friends')
         .select(`
           *,
-          friend_profile:profiles!friends_friend_id_fkey(username, email, avatar_url),
-          user_profile:profiles!friends_user_id_fkey(username, email, avatar_url)
+          friend_profile:profiles!friends_friend_id_fkey(id, username, email, avatar_url),
+          user_profile:profiles!friends_user_id_fkey(id, username, email, avatar_url)
         `)
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setFriends(data || []);
+      
+      const typedFriends = (data || []).map(friend => ({
+        ...friend,
+        status: friend.status as 'pending' | 'accepted' | 'blocked'
+      }));
+      
+      setFriends(typedFriends);
     } catch (error) {
       console.error('Error fetching friends:', error);
       // Fallback: fetch friends without profile joins if foreign keys aren't set up yet
@@ -84,6 +91,7 @@ const FriendsManager: React.FC = () => {
 
         const friendsWithProfiles = friendsData?.map(friend => ({
           ...friend,
+          status: friend.status as 'pending' | 'accepted' | 'blocked',
           friend_profile: profilesMap.get(friend.friend_id),
           user_profile: profilesMap.get(friend.user_id)
         })) || [];

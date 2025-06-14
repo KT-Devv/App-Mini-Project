@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Share2, Copy, Mail, Users } from 'lucide-react';
+import { UserPlus, Copy, Mail, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ interface Friend {
   user_id: string;
   friend_id: string;
   status: 'pending' | 'accepted' | 'blocked';
+  created_at: string;
   friend_profile?: {
     id: string;
     username: string;
@@ -31,54 +32,23 @@ interface Friend {
 }
 
 interface InviteToRoomModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   roomId: string;
   roomName: string;
 }
 
-const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
-  isOpen,
-  onClose,
-  roomId,
-  roomName
-}) => {
+const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({ roomId, roomName }) => {
   const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [email, setEmail] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const generateInviteCode = async () => {
-    try {
-      const code = Math.random().toString(36).substring(2, 15);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-      const { error } = await supabase
-        .from('chat_room_invitations')
-        .insert({
-          room_id: roomId,
-          invited_by: user?.id,
-          invitation_code: code,
-          expires_at: expiresAt.toISOString(),
-          status: 'pending'
-        });
-
-      if (error) throw error;
-      setInviteCode(code);
-      toast.success('Invite code generated!');
-    } catch (error) {
-      console.error('Error generating invite code:', error);
-      toast.error('Failed to generate invite code');
-    }
-  };
 
   const fetchFriends = async () => {
     if (!user) return;
 
     try {
-      // Try to fetch with profile joins first
       const { data, error } = await supabase
         .from('friends')
         .select(`
@@ -87,36 +57,41 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
           user_profile:profiles!friends_user_id_fkey(id, username, email, avatar_url)
         `)
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-        .eq('status', 'accepted');
+        .eq('status', 'accepted')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setFriends(data || []);
+      
+      const typedFriends = (data || []).map(friend => ({
+        ...friend,
+        status: friend.status as 'pending' | 'accepted' | 'blocked'
+      }));
+      
+      setFriends(typedFriends);
     } catch (error) {
       console.error('Error fetching friends:', error);
-      // Fallback: fetch friends without profile joins
+      // Fallback approach
       try {
         const { data: friendsData, error: friendsError } = await supabase
           .from('friends')
           .select('*')
           .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-          .eq('status', 'accepted');
+          .eq('status', 'accepted')
+          .order('created_at', { ascending: false });
 
         if (friendsError) throw friendsError;
 
-        // Get all unique user IDs from friends
         const userIds = new Set<string>();
         friendsData?.forEach(friend => {
           userIds.add(friend.user_id);
           userIds.add(friend.friend_id);
         });
 
-        // Fetch profiles separately
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, username, email, avatar_url')
           .in('id', Array.from(userIds));
 
-        // Map profiles to friends
         const profilesMap = new Map();
         profilesData?.forEach(profile => {
           profilesMap.set(profile.id, profile);
@@ -124,6 +99,7 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
 
         const friendsWithProfiles = friendsData?.map(friend => ({
           ...friend,
+          status: friend.status as 'pending' | 'accepted' | 'blocked',
           friend_profile: profilesMap.get(friend.friend_id),
           user_profile: profilesMap.get(friend.user_id)
         })) || [];
@@ -131,56 +107,62 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
         setFriends(friendsWithProfiles);
       } catch (fallbackError) {
         console.error('Error in fallback fetch:', fallbackError);
+        toast.error('Failed to load friends');
       }
     }
   };
 
-  const inviteFriend = async (friendUserId: string) => {
+  const generateInviteLink = async () => {
     if (!user) return;
 
-    setLoading(true);
     try {
-      // Check if user is already a member
-      const { data: existingMember } = await supabase
-        .from('chat_room_members')
-        .select('id')
-        .eq('room_id', roomId)
-        .eq('user_id', friendUserId)
-        .single();
-
-      if (existingMember) {
-        toast.error('User is already a member of this room');
-        return;
-      }
-
-      // Check if invitation already exists
-      const { data: existingInvite } = await supabase
-        .from('chat_room_invitations')
-        .select('id')
-        .eq('room_id', roomId)
-        .eq('invited_user', friendUserId)
-        .eq('status', 'pending')
-        .single();
-
-      if (existingInvite) {
-        toast.error('Invitation already sent to this user');
-        return;
-      }
+      const inviteCode = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
       const { error } = await supabase
         .from('chat_room_invitations')
         .insert({
           room_id: roomId,
           invited_by: user.id,
-          invited_user: friendUserId,
-          status: 'pending'
+          invitation_code: inviteCode,
+          expires_at: expiresAt
         });
 
       if (error) throw error;
-      toast.success('Invitation sent!');
+
+      const link = `${window.location.origin}/join-room/${inviteCode}`;
+      setInviteLink(link);
+      return link;
     } catch (error) {
-      console.error('Error inviting friend:', error);
-      toast.error('Failed to send invitation');
+      console.error('Error generating invite link:', error);
+      toast.error('Failed to generate invite link');
+      return null;
+    }
+  };
+
+  const inviteFriends = async () => {
+    if (!user || selectedFriends.size === 0) return;
+
+    setLoading(true);
+    try {
+      const invitations = Array.from(selectedFriends).map(friendId => ({
+        room_id: roomId,
+        invited_by: user.id,
+        invited_user: friendId
+      }));
+
+      const { error } = await supabase
+        .from('chat_room_invitations')
+        .insert(invitations);
+
+      if (error) throw error;
+
+      toast.success(`Invited ${selectedFriends.size} friend(s) to ${roomName}`);
+      setSelectedFriends(new Set());
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error inviting friends:', error);
+      toast.error('Failed to send invitations');
     } finally {
       setLoading(false);
     }
@@ -196,35 +178,35 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
         .insert({
           room_id: roomId,
           invited_by: user.id,
-          email: email.trim(),
-          status: 'pending'
+          email: email.trim()
         });
 
       if (error) throw error;
-      toast.success('Invitation sent by email!');
+
+      toast.success(`Invitation sent to ${email}`);
       setEmail('');
     } catch (error) {
       console.error('Error sending email invitation:', error);
-      toast.error('Failed to send email invitation');
+      toast.error('Failed to send invitation');
     } finally {
       setLoading(false);
     }
   };
 
-  const copyInviteLink = () => {
-    if (inviteCode) {
-      const link = `${window.location.origin}/join-room/${inviteCode}`;
-      navigator.clipboard.writeText(link);
-      toast.success('Invite link copied to clipboard!');
+  const copyInviteLink = async () => {
+    let link = inviteLink;
+    if (!link) {
+      link = await generateInviteLink();
+      if (!link) return;
     }
-  };
 
-  const getFriendProfile = (friend: Friend) => {
-    return friend.friend_id === user?.id ? friend.user_profile : friend.friend_profile;
-  };
-
-  const getFriendUserId = (friend: Friend) => {
-    return friend.friend_id === user?.id ? friend.user_id : friend.friend_id;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success('Invite link copied to clipboard!');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error('Failed to copy link');
+    }
   };
 
   useEffect(() => {
@@ -233,8 +215,21 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
     }
   }, [isOpen, user]);
 
+  const getDisplayInfo = (friend: Friend) => {
+    const isReceived = friend.friend_id === user?.id;
+    const profile = isReceived ? friend.user_profile : friend.friend_profile;
+    const friendUserId = isReceived ? friend.user_id : friend.friend_id;
+    return { profile, friendUserId };
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <UserPlus className="h-4 w-4 mr-2" />
+          Invite
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Invite to {roomName}</DialogTitle>
@@ -247,92 +242,98 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
             <TabsTrigger value="link">Link</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="friends" className="flex-1 overflow-y-auto mt-4">
-            <div className="space-y-3">
+          <TabsContent value="friends" className="flex-1 overflow-hidden flex flex-col space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-2">
               {friends.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                  <p>No friends to invite</p>
+                  <p>No friends available</p>
                   <p className="text-sm">Add friends first to invite them</p>
                 </div>
               ) : (
                 friends.map((friend) => {
-                  const profile = getFriendProfile(friend);
-                  const friendUserId = getFriendUserId(friend);
+                  const { profile, friendUserId } = getDisplayInfo(friend);
+                  const isSelected = selectedFriends.has(friendUserId);
+                  
                   return (
-                    <div key={friend.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={profile?.avatar_url} />
-                          <AvatarFallback>
-                            {profile?.username?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-sm">
-                            {profile?.username || profile?.email?.split('@')[0] || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-gray-500">{profile?.email}</p>
-                        </div>
+                    <div
+                      key={friend.id}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-50 border-blue-200 border' : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                      onClick={() => {
+                        const newSelected = new Set(selectedFriends);
+                        if (isSelected) {
+                          newSelected.delete(friendUserId);
+                        } else {
+                          newSelected.add(friendUserId);
+                        }
+                        setSelectedFriends(newSelected);
+                      }}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={profile?.avatar_url} />
+                        <AvatarFallback>
+                          {profile?.username?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          {profile?.username || profile?.email?.split('@')[0] || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-gray-600">{profile?.email}</p>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => inviteFriend(friendUserId)}
-                        disabled={loading}
-                      >
-                        Invite
-                      </Button>
+                      {isSelected && (
+                        <Badge variant="default" className="text-xs">Selected</Badge>
+                      )}
                     </div>
                   );
                 })
               )}
             </div>
+            
+            {selectedFriends.size > 0 && (
+              <Button onClick={inviteFriends} disabled={loading} className="w-full">
+                Invite {selectedFriends.size} Friend(s)
+              </Button>
+            )}
           </TabsContent>
 
-          <TabsContent value="email" className="mt-4">
-            <div className="space-y-4">
+          <TabsContent value="email" className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && inviteByEmail()}
+              />
+            </div>
+            <Button onClick={inviteByEmail} disabled={loading || !email.trim()} className="w-full">
+              <Mail className="h-4 w-4 mr-2" />
+              Send Invitation
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="link" className="space-y-4">
+            <div className="space-y-2">
+              <Label>Shareable Link</Label>
               <div className="flex space-x-2">
                 <Input
-                  placeholder="Enter email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && inviteByEmail()}
+                  value={inviteLink || 'Click generate to create invite link'}
+                  readOnly
+                  className="flex-1"
                 />
-                <Button onClick={inviteByEmail} disabled={loading}>
-                  <Mail className="h-4 w-4" />
+                <Button onClick={copyInviteLink} variant="outline">
+                  <Copy className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-sm text-gray-500">
-                Send an invitation to someone who isn't your friend yet
-              </p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="link" className="mt-4">
-            <div className="space-y-4">
-              {!inviteCode ? (
-                <Button onClick={generateInviteCode} className="w-full">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Generate Invite Link
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium mb-2">Invite Link:</p>
-                    <p className="text-xs text-gray-600 break-all">
-                      {window.location.origin}/join-room/{inviteCode}
-                    </p>
-                  </div>
-                  <Button onClick={copyInviteLink} className="w-full">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Link
-                  </Button>
-                  <p className="text-xs text-gray-500">
-                    This link expires in 7 days
-                  </p>
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-gray-600">
+              Anyone with this link can join the room. Links expire in 7 days.
+            </p>
           </TabsContent>
         </Tabs>
       </DialogContent>
