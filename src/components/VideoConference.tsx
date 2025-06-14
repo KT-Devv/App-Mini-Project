@@ -51,6 +51,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcServiceRef = useRef<WebRTCService | null>(null);
   const channelsRef = useRef<any[]>([]);
+  const isCleaningUpRef = useRef(false);
 
   useEffect(() => {
     if (user) {
@@ -61,15 +62,36 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
 
     return () => {
-      cleanupWebRTC();
-      cleanupChannels();
+      cleanup();
     };
   }, [sessionId, user]);
 
-  const cleanupChannels = () => {
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel);
+  const cleanup = async () => {
+    if (isCleaningUpRef.current) return;
+    isCleaningUpRef.current = true;
+
+    try {
+      await cleanupWebRTC();
+      await cleanupChannels();
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    } finally {
+      isCleaningUpRef.current = false;
+    }
+  };
+
+  const cleanupChannels = async () => {
+    const promises = channelsRef.current.map(async (channel) => {
+      try {
+        if (channel && typeof channel.unsubscribe === 'function') {
+          await channel.unsubscribe();
+        }
+      } catch (error) {
+        console.error('Error unsubscribing from channel:', error);
+      }
     });
+    
+    await Promise.allSettled(promises);
     channelsRef.current = [];
   };
 
@@ -109,10 +131,15 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const cleanupWebRTC = () => {
+  const cleanupWebRTC = async () => {
     if (webrtcServiceRef.current) {
-      webrtcServiceRef.current.cleanup();
-      webrtcServiceRef.current = null;
+      try {
+        webrtcServiceRef.current.cleanup();
+      } catch (error) {
+        console.error('Error cleaning up WebRTC:', error);
+      } finally {
+        webrtcServiceRef.current = null;
+      }
     }
   };
 
@@ -120,41 +147,53 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     // Clean up any existing channels first
     cleanupChannels();
 
-    const participantsChannel = supabase
-      .channel(`session-participants-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'session_participants',
-          filter: `session_id=eq.${sessionId}`
-        },
-        () => {
-          fetchParticipants();
-        }
-      )
-      .subscribe();
-
-    const messagesChannel = supabase
-      .channel(`session-messages-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages'
-        },
-        (payload) => {
-          if (payload.new.room_id === sessionId) {
-            fetchMessages();
+    try {
+      const participantsChannel = supabase
+        .channel(`session-participants-${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'session_participants',
+            filter: `session_id=eq.${sessionId}`
+          },
+          () => {
+            fetchParticipants();
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to participants channel');
+          }
+        });
 
-    // Store channels for cleanup
-    channelsRef.current = [participantsChannel, messagesChannel];
+      const messagesChannel = supabase
+        .channel(`session-messages-${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages'
+          },
+          (payload) => {
+            if (payload.new.room_id === sessionId) {
+              fetchMessages();
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to messages channel');
+          }
+        });
+
+      // Store channels for cleanup
+      channelsRef.current = [participantsChannel, messagesChannel];
+    } catch (error) {
+      console.error('Error setting up realtime subscriptions:', error);
+    }
   };
 
   const fetchParticipants = async () => {
@@ -292,7 +331,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         console.error('Error leaving session:', error);
       }
 
-      cleanupWebRTC();
+      await cleanup();
       onLeaveSession();
     } catch (error) {
       console.error('Unexpected error leaving session:', error);

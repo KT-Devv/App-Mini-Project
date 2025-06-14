@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SignalingMessage {
@@ -15,6 +14,7 @@ export class WebRTCService {
   private sessionId: string;
   private userId: string;
   private channel: any = null;
+  private isCleaningUp: boolean = false;
   private onRemoteStreamCallback?: (userId: string, stream: MediaStream) => void;
   private onUserLeftCallback?: (userId: string) => void;
 
@@ -44,31 +44,39 @@ export class WebRTCService {
   }
 
   private setupSignalingChannel() {
-    // Don't create a new channel if one already exists
-    if (this.channel) {
-      console.log('Channel already exists, skipping setup');
+    // Don't create a new channel if one already exists or if we're cleaning up
+    if (this.channel || this.isCleaningUp) {
+      console.log('Channel already exists or cleaning up, skipping setup');
       return;
     }
 
-    this.channel = supabase.channel(`webrtc-${this.sessionId}`)
-      .on('broadcast', { event: 'signaling' }, (payload) => {
-        this.handleSignalingMessage(payload.payload as SignalingMessage);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          // Only announce user joined after successful subscription
-          this.sendSignalingMessage({
-            type: 'user-joined',
-            data: {},
-            from: this.userId,
-            sessionId: this.sessionId
-          });
-        }
-      });
+    try {
+      this.channel = supabase.channel(`webrtc-${this.sessionId}`)
+        .on('broadcast', { event: 'signaling' }, (payload) => {
+          if (!this.isCleaningUp) {
+            this.handleSignalingMessage(payload.payload as SignalingMessage);
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED' && !this.isCleaningUp) {
+            // Only announce user joined after successful subscription
+            this.sendSignalingMessage({
+              type: 'user-joined',
+              data: {},
+              from: this.userId,
+              sessionId: this.sessionId
+            });
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to WebRTC channel');
+          }
+        });
+    } catch (error) {
+      console.error('Error setting up signaling channel:', error);
+    }
   }
 
   private async handleSignalingMessage(message: SignalingMessage) {
-    if (message.from === this.userId) return;
+    if (message.from === this.userId || this.isCleaningUp) return;
 
     console.log('Received signaling message:', message);
 
@@ -92,6 +100,8 @@ export class WebRTCService {
   }
 
   private async createPeerConnection(userId: string, isInitiator: boolean) {
+    if (this.isCleaningUp) return;
+
     const peerConnection = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -111,14 +121,14 @@ export class WebRTCService {
     // Handle remote stream
     peerConnection.ontrack = (event) => {
       console.log('Received remote stream from:', userId);
-      if (this.onRemoteStreamCallback) {
+      if (this.onRemoteStreamCallback && !this.isCleaningUp) {
         this.onRemoteStreamCallback(userId, event.streams[0]);
       }
     };
 
     // Handle ICE candidates
     peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
+      if (event.candidate && !this.isCleaningUp) {
         this.sendSignalingMessage({
           type: 'ice-candidate',
           data: event.candidate,
@@ -130,7 +140,7 @@ export class WebRTCService {
     };
 
     // Create offer if initiator
-    if (isInitiator) {
+    if (isInitiator && !this.isCleaningUp) {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       
@@ -145,6 +155,8 @@ export class WebRTCService {
   }
 
   private async handleOffer(from: string, offer: RTCSessionDescriptionInit) {
+    if (this.isCleaningUp) return;
+
     let peerConnection = this.peerConnections.get(from);
     
     if (!peerConnection) {
@@ -152,7 +164,7 @@ export class WebRTCService {
       peerConnection = this.peerConnections.get(from);
     }
 
-    if (peerConnection) {
+    if (peerConnection && !this.isCleaningUp) {
       await peerConnection.setRemoteDescription(offer);
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
@@ -168,6 +180,8 @@ export class WebRTCService {
   }
 
   private async handleAnswer(from: string, answer: RTCSessionDescriptionInit) {
+    if (this.isCleaningUp) return;
+
     const peerConnection = this.peerConnections.get(from);
     if (peerConnection) {
       await peerConnection.setRemoteDescription(answer);
@@ -175,6 +189,8 @@ export class WebRTCService {
   }
 
   private async handleIceCandidate(from: string, candidate: RTCIceCandidateInit) {
+    if (this.isCleaningUp) return;
+
     const peerConnection = this.peerConnections.get(from);
     if (peerConnection) {
       await peerConnection.addIceCandidate(candidate);
@@ -188,18 +204,22 @@ export class WebRTCService {
       this.peerConnections.delete(userId);
     }
     
-    if (this.onUserLeftCallback) {
+    if (this.onUserLeftCallback && !this.isCleaningUp) {
       this.onUserLeftCallback(userId);
     }
   }
 
   private sendSignalingMessage(message: SignalingMessage) {
-    if (this.channel) {
-      this.channel.send({
-        type: 'broadcast',
-        event: 'signaling',
-        payload: message
-      });
+    if (this.channel && !this.isCleaningUp) {
+      try {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'signaling',
+          payload: message
+        });
+      } catch (error) {
+        console.error('Error sending signaling message:', error);
+      }
     }
   }
 
@@ -234,29 +254,52 @@ export class WebRTCService {
   }
 
   cleanup() {
-    // Send user left message
+    this.isCleaningUp = true;
+
+    // Send user left message before cleanup
     if (this.channel) {
-      this.sendSignalingMessage({
-        type: 'user-left',
-        data: {},
-        from: this.userId,
-        sessionId: this.sessionId
-      });
+      try {
+        this.sendSignalingMessage({
+          type: 'user-left',
+          data: {},
+          from: this.userId,
+          sessionId: this.sessionId
+        });
+      } catch (error) {
+        console.error('Error sending user left message:', error);
+      }
     }
 
     // Close all peer connections
-    this.peerConnections.forEach(pc => pc.close());
+    this.peerConnections.forEach(pc => {
+      try {
+        pc.close();
+      } catch (error) {
+        console.error('Error closing peer connection:', error);
+      }
+    });
     this.peerConnections.clear();
 
     // Stop local stream
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.error('Error stopping track:', error);
+        }
+      });
     }
 
     // Unsubscribe from channel
     if (this.channel) {
-      supabase.removeChannel(this.channel);
-      this.channel = null;
+      try {
+        this.channel.unsubscribe();
+      } catch (error) {
+        console.error('Error unsubscribing from channel:', error);
+      } finally {
+        this.channel = null;
+      }
     }
   }
 }
