@@ -9,101 +9,64 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      chat_participants: {
+      chat_messages: {
         Row: {
-          chat_id: string
-          joined_at: string
-          user_id: string
-        }
-        Insert: {
-          chat_id: string
-          joined_at?: string
-          user_id: string
-        }
-        Update: {
-          chat_id?: string
-          joined_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_participants_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_participants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chats: {
-        Row: {
-          created_at: string
-          id: string
-          is_group: boolean | null
-          title: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_group?: boolean | null
-          title: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_group?: boolean | null
-          title?: string
-        }
-        Relationships: []
-      }
-      messages: {
-        Row: {
-          attachments: string[] | null
-          chat_id: string | null
           content: string
           created_at: string
           id: string
-          sender_id: string | null
+          room_id: string | null
+          user_id: string | null
         }
         Insert: {
-          attachments?: string[] | null
-          chat_id?: string | null
           content: string
           created_at?: string
           id?: string
-          sender_id?: string | null
+          room_id?: string | null
+          user_id?: string | null
         }
         Update: {
-          attachments?: string[] | null
-          chat_id?: string | null
           content?: string
           created_at?: string
           id?: string
-          sender_id?: string | null
+          room_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "messages_chat_id_fkey"
-            columns: ["chat_id"]
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
             isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "chat_rooms"
             referencedColumns: ["id"]
           },
         ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

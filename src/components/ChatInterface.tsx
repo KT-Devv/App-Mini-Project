@@ -1,26 +1,27 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Hash, Plus, MoreHorizontal } from 'lucide-react';
+import { Send, Hash, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface ChatRoom {
   id: string;
-  title: string;
+  name: string;
+  description: string | null;
   created_at: string;
-  is_group: boolean;
+  is_active: boolean;
 }
 
-interface Message {
+interface ChatMessage {
   id: string;
   content: string;
   created_at: string;
-  sender_id: string;
-  chat_id: string;
+  user_id: string;
+  room_id: string;
   profiles?: {
     username: string;
     email: string;
@@ -31,158 +32,91 @@ const ChatInterface: React.FC = () => {
   const { user } = useAuth();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const ensureUserInDefaultChats = useCallback(async () => {
-    if (!user) return;
-
+  const fetchChatRooms = async () => {
     try {
-      // Get all chat rooms
-      const { data: allChats, error: chatsError } = await supabase
-        .from('chats')
-        .select('*');
-
-      if (chatsError) {
-        console.error('Error fetching all chats:', chatsError);
-        return;
-      }
-
-      // Get user's current participations
-      const { data: userParticipations, error: participationsError } = await supabase
-        .from('chat_participants')
-        .select('chat_id')
-        .eq('user_id', user.id);
-
-      if (participationsError) {
-        console.error('Error fetching user participations:', participationsError);
-        return;
-      }
-
-      const participatingChatIds = userParticipations?.map(p => p.chat_id) || [];
-      const chatsToJoin = allChats?.filter(chat => !participatingChatIds.includes(chat.id)) || [];
-
-      // Add user to chats they're not already in
-      if (chatsToJoin.length > 0) {
-        const insertData = chatsToJoin.map(chat => ({
-          chat_id: chat.id,
-          user_id: user.id
-        }));
-
-        const { error: insertError } = await supabase
-          .from('chat_participants')
-          .insert(insertData);
-
-        if (insertError) {
-          console.error('Error joining chats:', insertError);
-        } else {
-          console.log(`Joined ${chatsToJoin.length} new chat rooms`);
-        }
-      }
-    } catch (err) {
-      console.error('Unexpected error ensuring user in chats:', err);
-    }
-  }, [user]);
-
-  const fetchChatRooms = useCallback(async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // First ensure user is in default chats
-      await ensureUserInDefaultChats();
-
-      // Fetch chats user is participating in using the fixed RLS policy
       const { data, error } = await supabase
-        .from('chats')
+        .from('chat_rooms')
         .select('*')
+        .eq('is_active', true)
         .order('created_at');
 
       if (error) {
         console.error('Error fetching chat rooms:', error);
-        toast.error('Failed to fetch chat rooms.');
+        toast.error('Failed to load chat rooms');
         return;
       }
 
-      console.log('Fetched chat rooms:', data);
       setChatRooms(data || []);
       if (data && data.length > 0 && !activeRoom) {
         setActiveRoom(data[0]);
       }
-      setLoading(false);
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred.');
+      toast.error('An unexpected error occurred');
+    } finally {
       setLoading(false);
     }
-  }, [user, ensureUserInDefaultChats]);
+  };
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = async () => {
     if (!activeRoom) return;
 
     try {
-      console.log('Fetching messages for room:', activeRoom.id);
-      
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
+      const { data, error } = await supabase
+        .from('chat_messages')
         .select(`
           id,
           content,
           created_at,
-          sender_id,
-          chat_id,
-          profiles!messages_sender_id_fkey (
+          user_id,
+          room_id,
+          profiles!chat_messages_user_id_fkey (
             username,
             email
           )
         `)
-        .eq('chat_id', activeRoom.id)
+        .eq('room_id', activeRoom.id)
         .order('created_at');
 
-      if (messagesError) {
-        console.error('Error fetching messages:', messagesError);
-        toast.error('Failed to fetch messages.');
+      if (error) {
+        console.error('Error fetching messages:', error);
+        toast.error('Failed to load messages');
         return;
       }
 
-      console.log('Messages data:', messagesData);
-      setMessages(messagesData || []);
+      setMessages(data || []);
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred.');
+      toast.error('An unexpected error occurred');
     }
-  }, [activeRoom]);
-
-  const joinRoom = useCallback((room: ChatRoom) => {
-    setActiveRoom(room);
-    console.log(`Joined room: ${room.title}`);
-  }, []);
+  };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !activeRoom || !user) return;
 
     try {
       const { error } = await supabase
-        .from('messages')
+        .from('chat_messages')
         .insert({
           content: newMessage.trim(),
-          chat_id: activeRoom.id,
-          sender_id: user.id,
+          room_id: activeRoom.id,
+          user_id: user.id,
         });
 
       if (error) {
         console.error('Error sending message:', error);
-        toast.error('Failed to send message.');
+        toast.error('Failed to send message');
         return;
       }
 
       setNewMessage("");
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred.');
+      toast.error('An unexpected error occurred');
     }
   };
 
@@ -193,39 +127,43 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  const selectRoom = (room: ChatRoom) => {
+    setActiveRoom(room);
+    setMessages([]);
+  };
+
   useEffect(() => {
     fetchChatRooms();
-  }, [fetchChatRooms]);
+  }, []);
 
   useEffect(() => {
     fetchMessages();
-  }, [fetchMessages]);
+  }, [activeRoom]);
 
   // Set up real-time subscriptions
   useEffect(() => {
     if (!activeRoom) return;
 
-    const messagesChannel = supabase
-      .channel(`messages-${activeRoom.id}`)
+    const messageChannel = supabase
+      .channel(`chat-messages-${activeRoom.id}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${activeRoom.id}`
+          table: 'chat_messages',
+          filter: `room_id=eq.${activeRoom.id}`
         },
-        (payload) => {
-          console.log('New message received:', payload);
+        () => {
           fetchMessages();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(messageChannel);
     };
-  }, [activeRoom, fetchMessages]);
+  }, [activeRoom]);
 
   if (loading) {
     return (
@@ -255,18 +193,16 @@ const ChatInterface: React.FC = () => {
       <div className="w-64 bg-slate-800 text-white flex flex-col">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-slate-700">
-          <h1 className="text-xl font-bold text-white">StudySphere</h1>
+          <h1 className="text-xl font-bold text-white">StudySphere Chat</h1>
           <p className="text-sm text-slate-300">Chat Rooms</p>
         </div>
 
-        {/* Channels Section */}
+        {/* Rooms List */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Channels</h2>
-              <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-white hover:bg-slate-700">
-                <Plus className="h-3 w-3" />
-              </Button>
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Rooms</h2>
+              <Users className="h-4 w-4 text-slate-400" />
             </div>
             
             <div className="space-y-1">
@@ -276,15 +212,20 @@ const ChatInterface: React.FC = () => {
                 chatRooms.map((room) => (
                   <button
                     key={room.id}
-                    onClick={() => joinRoom(room)}
-                    className={`w-full flex items-center px-2 py-1.5 rounded text-left text-sm transition-colors ${
+                    onClick={() => selectRoom(room)}
+                    className={`w-full flex items-center px-2 py-2 rounded text-left text-sm transition-colors ${
                       activeRoom?.id === room.id
                         ? 'bg-blue-600 text-white'
                         : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                     }`}
                   >
                     <Hash className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">{room.title}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="block truncate font-medium">{room.name}</span>
+                      {room.description && (
+                        <span className="block truncate text-xs opacity-75">{room.description}</span>
+                      )}
+                    </div>
                   </button>
                 ))
               )}
@@ -307,9 +248,6 @@ const ChatInterface: React.FC = () => {
               </p>
               <p className="text-xs text-slate-400">Online</p>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-white">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>
@@ -322,7 +260,12 @@ const ChatInterface: React.FC = () => {
             <div className="h-16 border-b border-gray-200 flex items-center px-6 bg-white">
               <div className="flex items-center space-x-2">
                 <Hash className="h-5 w-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">{activeRoom.title}</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">{activeRoom.name}</h2>
+                  {activeRoom.description && (
+                    <p className="text-sm text-gray-500">{activeRoom.description}</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -334,7 +277,7 @@ const ChatInterface: React.FC = () => {
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               ) : (
-                messages.map((message: Message) => (
+                messages.map((message) => (
                   <div key={message.id} className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8 mt-0.5">
                       <AvatarImage src="" />
@@ -374,7 +317,7 @@ const ChatInterface: React.FC = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={`Message #${activeRoom.title}`}
+                  placeholder={`Message #${activeRoom.name}`}
                   className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
                 <Button 
@@ -392,7 +335,7 @@ const ChatInterface: React.FC = () => {
             <div className="text-center">
               <Hash className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to StudySphere Chat</h3>
-              <p className="text-gray-500">Select a channel to start chatting with your study group.</p>
+              <p className="text-gray-500">Select a room to start chatting with your study group.</p>
             </div>
           </div>
         )}
