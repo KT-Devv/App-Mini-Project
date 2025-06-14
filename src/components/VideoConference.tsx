@@ -7,6 +7,7 @@ import { Mic, MicOff, Video, VideoOff, Phone, Send, Users, Settings } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { WebRTCService } from '@/services/webrtcService';
 
 interface VideoConferenceProps {
   sessionId: string;
@@ -32,25 +33,88 @@ interface Participant {
   };
 }
 
+interface RemoteVideo {
+  userId: string;
+  stream: MediaStream;
+  username: string;
+}
+
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
+  const [remoteVideos, setRemoteVideos] = useState<RemoteVideo[]>([]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const webrtcServiceRef = useRef<WebRTCService | null>(null);
+  const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   useEffect(() => {
-    initializeMedia();
-    fetchParticipants();
-    fetchMessages();
+    if (user) {
+      initializeWebRTC();
+      fetchParticipants();
+      fetchMessages();
+      setupRealtimeSubscriptions();
+    }
 
-    // Set up real-time subscriptions
+    return () => {
+      cleanupWebRTC();
+    };
+  }, [sessionId, user]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const initializeWebRTC = async () => {
+    if (!user || !localVideoRef.current) return;
+
+    try {
+      const webrtcService = new WebRTCService(sessionId, user.id);
+      webrtcServiceRef.current = webrtcService;
+
+      // Setup callbacks
+      webrtcService.onRemoteStream((userId, stream) => {
+        console.log('Adding remote stream for user:', userId);
+        const participant = participants.find(p => p.user_id === userId);
+        const username = participant?.profiles?.username || 'Unknown User';
+        
+        setRemoteVideos(prev => {
+          const existing = prev.find(v => v.userId === userId);
+          if (existing) {
+            return prev.map(v => v.userId === userId ? { ...v, stream } : v);
+          }
+          return [...prev, { userId, stream, username }];
+        });
+      });
+
+      webrtcService.onUserLeft((userId) => {
+        console.log('User left:', userId);
+        setRemoteVideos(prev => prev.filter(v => v.userId !== userId));
+      });
+
+      await webrtcService.initialize(localVideoRef.current);
+      setIsConnecting(false);
+    } catch (error) {
+      console.error('Error initializing WebRTC:', error);
+      toast.error('Failed to access camera/microphone');
+      setIsConnecting(false);
+    }
+  };
+
+  const cleanupWebRTC = () => {
+    if (webrtcServiceRef.current) {
+      webrtcServiceRef.current.cleanup();
+      webrtcServiceRef.current = null;
+    }
+  };
+
+  const setupRealtimeSubscriptions = () => {
     const participantsChannel = supabase
       .channel(`session-participants-${sessionId}`)
       .on(
@@ -87,42 +151,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     return () => {
       supabase.removeChannel(participantsChannel);
       supabase.removeChannel(messagesChannel);
-      cleanupMedia();
     };
-  }, [sessionId]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const initializeMedia = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-      
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      setIsConnecting(false);
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
-      toast.error('Failed to access camera/microphone');
-      setIsConnecting(false);
-    }
-  };
-
-  const cleanupMedia = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-    }
   };
 
   const fetchParticipants = async () => {
     try {
-      // Get participants
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
         .select('session_id, user_id, joined_at')
@@ -133,7 +166,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         return;
       }
 
-      // Then get profiles for each participant
       if (participantsData && participantsData.length > 0) {
         const userIds = participantsData.map(p => p.user_id);
         const { data: profilesData, error: profilesError } = await supabase
@@ -145,7 +177,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
           console.error('Error fetching profiles:', profilesError);
         }
 
-        // Combine participants with their profiles
         const participantsWithProfiles = participantsData.map(participant => ({
           ...participant,
           profiles: profilesData?.find(profile => profile.id === participant.user_id) || {
@@ -156,7 +187,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
         setParticipants(participantsWithProfiles);
 
-        // Check if session should end (no participants left)
         if (participantsWithProfiles.length === 0) {
           await endSession();
         }
@@ -215,7 +245,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const endSession = async () => {
     try {
-      // Update session status to ended
       const { error } = await supabase
         .from('study_sessions')
         .update({ 
@@ -235,28 +264,21 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   };
 
   const toggleMute = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = isMuted;
-        setIsMuted(!isMuted);
-      }
+    if (webrtcServiceRef.current) {
+      const muted = webrtcServiceRef.current.toggleMute();
+      setIsMuted(muted);
     }
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = isVideoOff;
-        setIsVideoOff(!isVideoOff);
-      }
+    if (webrtcServiceRef.current) {
+      const videoOff = webrtcServiceRef.current.toggleVideo();
+      setIsVideoOff(videoOff);
     }
   };
 
   const handleLeaveSession = async () => {
     try {
-      // Remove user from participants
       const { error } = await supabase
         .from('session_participants')
         .delete()
@@ -267,7 +289,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         console.error('Error leaving session:', error);
       }
 
-      cleanupMedia();
+      cleanupWebRTC();
       onLeaveSession();
     } catch (error) {
       console.error('Unexpected error leaving session:', error);
@@ -284,6 +306,16 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       sendMessage();
     }
   };
+
+  // Setup remote video refs
+  useEffect(() => {
+    remoteVideos.forEach(({ userId, stream }) => {
+      const videoElement = remoteVideoRefs.current.get(userId);
+      if (videoElement && videoElement.srcObject !== stream) {
+        videoElement.srcObject = stream;
+      }
+    });
+  }, [remoteVideos]);
 
   if (isConnecting) {
     return (
@@ -332,35 +364,61 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
                   className="w-full h-full object-cover rounded-lg"
                 />
                 <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  You
+                  You {isMuted && '(Muted)'} {isVideoOff && '(Video Off)'}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Participants Grid */}
-            {participants.slice(0, 3).map((participant) => (
-              <Card key={participant.user_id} className="relative bg-gray-800 border-gray-700">
-                <CardContent className="p-0 h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <Avatar className="h-16 w-16 mx-auto mb-2">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        {participant.profiles?.username?.[0]?.toUpperCase() || 
-                         participant.profiles?.email?.[0]?.toUpperCase() || 
-                         'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="text-white text-sm">
-                      {participant.profiles?.username || 
-                       participant.profiles?.email?.split('@')[0] || 
-                       'Unknown User'}
-                    </p>
-                  </div>
+            {/* Remote Videos */}
+            {remoteVideos.map((remoteVideo) => (
+              <Card key={remoteVideo.userId} className="relative bg-gray-800 border-gray-700">
+                <CardContent className="p-0 h-full">
+                  <video
+                    ref={(el) => {
+                      if (el) {
+                        remoteVideoRefs.current.set(remoteVideo.userId, el);
+                      } else {
+                        remoteVideoRefs.current.delete(remoteVideo.userId);
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover rounded-lg"
+                  />
                   <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    {participant.profiles?.username || 'Participant'}
+                    {remoteVideo.username}
                   </div>
                 </CardContent>
               </Card>
             ))}
+
+            {/* Participant Avatars for users without video */}
+            {participants
+              .filter(p => p.user_id !== user?.id && !remoteVideos.find(rv => rv.userId === p.user_id))
+              .slice(0, 3 - remoteVideos.length)
+              .map((participant) => (
+                <Card key={participant.user_id} className="relative bg-gray-800 border-gray-700">
+                  <CardContent className="p-0 h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Avatar className="h-16 w-16 mx-auto mb-2">
+                        <AvatarFallback className="bg-blue-600 text-white">
+                          {participant.profiles?.username?.[0]?.toUpperCase() || 
+                           participant.profiles?.email?.[0]?.toUpperCase() || 
+                           'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="text-white text-sm">
+                        {participant.profiles?.username || 
+                         participant.profiles?.email?.split('@')[0] || 
+                         'Unknown User'}
+                      </p>
+                    </div>
+                    <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                      {participant.profiles?.username || 'Participant'}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
 
           {/* Controls */}
