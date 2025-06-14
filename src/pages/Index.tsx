@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,13 +12,14 @@ import AIAssistant from '../components/AIAssistant';
 import Profile from '../components/Profile';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
-  const [notifications] = useState(3);
   const [greeting, setGreeting] = useState('Good day');
   const [username, setUsername] = useState('Student');
   const { user } = useAuth();
+  const { unreadCount, setUnreadCount, createNotification } = useNotifications();
 
   // Update greeting based on current time
   useEffect(() => {
@@ -61,6 +60,37 @@ const Index = () => {
     };
 
     fetchUserProfile();
+  }, [user?.id]);
+
+  // Create some sample notifications for demo (remove this in production)
+  useEffect(() => {
+    const createSampleNotifications = async () => {
+      if (user?.id && unreadCount === 0) {
+        // Only create samples if no notifications exist
+        await createNotification(
+          user.id,
+          'Welcome to StudySphere! 🎉',
+          'Start by joining a study session or exploring resources.',
+          'general'
+        );
+        await createNotification(
+          user.id,
+          'New Study Session Available',
+          'Physics study group is starting in 30 minutes.',
+          'session'
+        );
+        await createNotification(
+          user.id,
+          'Resource Shared',
+          'Sarah K. shared new calculus notes.',
+          'resource'
+        );
+      }
+    };
+
+    if (user?.id) {
+      createSampleNotifications();
+    }
   }, [user?.id]);
 
   const quickActions = [
@@ -268,7 +298,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <MobileHeader notifications={notifications} />
+      <MobileHeader 
+        notifications={unreadCount} 
+        onNotificationCountChange={setUnreadCount}
+        onNavigate={setActiveTab}
+      />
       
       <main className="px-3 pt-3">
         {renderContent()}
