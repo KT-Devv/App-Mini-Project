@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +11,55 @@ import ResourceHub from '../components/ResourceHub';
 import AIAssistant from '../components/AIAssistant';
 import Profile from '../components/Profile';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [notifications] = useState(3);
+  const [greeting, setGreeting] = useState('Good day');
+  const [username, setUsername] = useState('Student');
   const { user } = useAuth();
+
+  // Update greeting based on current time
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) {
+        setGreeting('Good morning');
+      } else if (hour < 17) {
+        setGreeting('Good afternoon');
+      } else {
+        setGreeting('Good evening');
+      }
+    };
+
+    // Update greeting immediately
+    updateGreeting();
+
+    // Update greeting every minute
+    const interval = setInterval(updateGreeting, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch user profile for username
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.username) {
+          setUsername(profile.username);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [user?.id]);
 
   const quickActions = [
     { title: 'Ask Question', description: 'Get help from peers', icon: MessageCircle, color: 'bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('chat') },
@@ -57,7 +100,7 @@ const Index = () => {
             <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold mb-1">Good morning, Student! 🌟</h2>
+                  <h2 className="text-xl font-bold mb-1">{greeting}, {username}! 🌟</h2>
                   <p className="text-blue-100">Ready to learn something new today?</p>
                 </div>
                 <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
