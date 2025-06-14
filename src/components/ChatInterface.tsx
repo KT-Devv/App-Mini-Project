@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Send, Hash, Users, Plus, MessageCircle } from 'lucide-react';
+import { Hash, Users, Plus, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import UserMentionInput from './UserMentionInput';
+import ChatMessage from './ChatMessage';
 
 interface ChatRoom {
   id: string;
@@ -19,19 +19,22 @@ interface ChatRoom {
   created_by: string | null;
 }
 
-interface ChatMessage {
+interface ChatMessageWithProfile {
   id: string;
   content: string;
   created_at: string;
   user_id: string;
   room_id: string;
+  username?: string;
+  display_name?: string;
+  avatar_url?: string;
 }
 
 const ChatInterface: React.FC = () => {
   const { user } = useAuth();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageWithProfile[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
@@ -72,7 +75,7 @@ const ChatInterface: React.FC = () => {
     try {
       console.log('Fetching messages for room:', activeRoom.id);
       const { data, error } = await supabase
-        .from('chat_messages')
+        .from('chat_messages_with_profiles')
         .select('*')
         .eq('room_id', activeRoom.id)
         .order('created_at');
@@ -449,57 +452,25 @@ const ChatInterface: React.FC = () => {
                 </div>
               ) : (
                 messages.map((message) => (
-                  <div key={message.id} className="flex items-start space-x-3">
-                    <Avatar className="h-10 w-10 mt-1">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="bg-gray-500 text-white text-sm">
-                        {message.user_id === user?.id ? 'Y' : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                        <div className="flex items-baseline space-x-2 mb-2">
-                          <span className="text-sm font-semibold text-gray-900">
-                            {message.user_id === user?.id ? 'You' : 'User'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(message.created_at).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-gray-700 break-words">
-                          {message.content}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    currentUserId={user?.id || ''}
+                  />
                 ))
               )}
             </div>
 
             {/* Message Input */}
             <div className="bg-white border-t border-gray-200 p-6">
-              <div className="flex items-end space-x-3">
-                <div className="flex-1">
-                  <Textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={`Message #${activeRoom.name}`}
-                    className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg resize-none"
-                    rows={1}
-                  />
-                </div>
-                <Button 
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 px-6"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+              <UserMentionInput
+                value={newMessage}
+                onChange={setNewMessage}
+                onSend={sendMessage}
+                onKeyPress={handleKeyPress}
+                placeholder={`Message #${activeRoom.name}`}
+                disabled={false}
+              />
             </div>
           </>
         ) : (
