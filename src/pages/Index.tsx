@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,70 +97,70 @@ const Index = () => {
         return <Profile />;
       default:
         return (
-          <div className="space-y-6 pb-20 animate-fade-in">
-            {/* Enhanced Welcome Section */}
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg">
+          <div className="space-y-4 pb-24 animate-fade-in px-1">
+            {/* Enhanced Welcome Section - Optimized for Android */}
+            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold mb-1">{greeting}, {username}! 🌟</h2>
-                  <p className="text-blue-100">Ready to learn something new today?</p>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold mb-1 leading-tight">{greeting}, {username}! 🌟</h2>
+                  <p className="text-blue-100 text-sm">Ready to learn something new today?</p>
                 </div>
-                <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <Star className="h-6 w-6 text-yellow-300" />
+                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
+                  <Star className="h-5 w-5 text-yellow-300" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="bg-white bg-opacity-10 rounded-xl p-3">
-                  <p className="text-2xl font-bold">12</p>
-                  <p className="text-xs text-blue-200">Active Sessions</p>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
+                  <p className="text-xl font-bold">12</p>
+                  <p className="text-xs text-blue-200">Sessions</p>
                 </div>
-                <div className="bg-white bg-opacity-10 rounded-xl p-3">
-                  <p className="text-2xl font-bold">47</p>
-                  <p className="text-xs text-blue-200">Questions Solved</p>
+                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
+                  <p className="text-xl font-bold">47</p>
+                  <p className="text-xs text-blue-200">Questions</p>
                 </div>
-                <div className="bg-white bg-opacity-10 rounded-xl p-3">
-                  <p className="text-2xl font-bold">15</p>
-                  <p className="text-xs text-blue-200">Study Partners</p>
+                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
+                  <p className="text-xl font-bold">15</p>
+                  <p className="text-xs text-blue-200">Partners</p>
                 </div>
               </div>
             </div>
 
-            {/* Enhanced Quick Actions */}
+            {/* Enhanced Quick Actions - Android Optimized */}
             <div>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <h3 className="text-lg font-semibold mb-3 flex items-center px-1">
                 <span>Quick Actions</span>
                 <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 animate-pulse"></div>
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {quickActions.map((action, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 shadow-md" onClick={action.action}>
-                    <CardContent className="p-4">
-                      <div className={`w-14 h-14 ${action.color} rounded-xl flex items-center justify-center mb-3 shadow-md`}>
-                        <action.icon className="h-7 w-7 text-white" />
+                  <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 shadow-md active:scale-95" onClick={action.action}>
+                    <CardContent className="p-4 min-h-[100px] flex flex-col">
+                      <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-3 shadow-md`}>
+                        <action.icon className="h-6 w-6 text-white" />
                       </div>
-                      <h4 className="font-semibold text-sm mb-1">{action.title}</h4>
-                      <p className="text-xs text-gray-600 leading-relaxed">{action.description}</p>
+                      <h4 className="font-semibold text-sm mb-1 leading-tight">{action.title}</h4>
+                      <p className="text-xs text-gray-600 leading-relaxed flex-1">{action.description}</p>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </div>
 
-            {/* Trending Topics */}
-            <div>
+            {/* Trending Topics - Android Optimized */}
+            <div className="px-1">
               <h3 className="text-lg font-semibold mb-3 flex items-center">
                 <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
                 Trending Topics
               </h3>
               <div className="space-y-2">
                 {trendingTopics.map((topic, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white rounded-xl border shadow-sm">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div key={index} className="flex items-center justify-between p-4 bg-white rounded-xl border shadow-sm min-h-[56px] active:bg-gray-50">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                       <span className="font-medium text-sm">{topic.subject}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-600">{topic.count} discussions</span>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <span className="text-xs text-gray-600">{topic.count}</span>
                       <TrendingUp className={`h-4 w-4 ${topic.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} />
                     </div>
                   </div>
@@ -167,16 +168,16 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Enhanced Recent Activity */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
+            {/* Enhanced Recent Activity - Android Optimized */}
+            <div className="px-1">
+              <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold">Recent Activity</h3>
-                <Button variant="ghost" size="sm" className="text-blue-600">View All</Button>
+                <Button variant="ghost" size="sm" className="text-blue-600 min-h-[40px]">View All</Button>
               </div>
               <div className="space-y-3">
                 {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-4 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-                    <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                  <div key={index} className="flex items-center space-x-3 p-4 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow min-h-[64px] active:bg-gray-50">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-xs font-bold text-gray-600">{activity.avatar}</span>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -205,11 +206,11 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Enhanced Active Study Groups */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
+            {/* Enhanced Active Study Groups - Android Optimized */}
+            <div className="px-1">
+              <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold">Active Study Groups</h3>
-                <Button variant="ghost" size="sm" className="text-blue-600">
+                <Button variant="ghost" size="sm" className="text-blue-600 min-h-[40px]">
                   <Plus className="h-4 w-4 mr-1" />
                   Create
                 </Button>
@@ -231,7 +232,7 @@ const Index = () => {
                       </p>
                       <p className="text-xs text-green-600">Quantum Mechanics</p>
                     </div>
-                    <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 shadow-sm">
+                    <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 shadow-sm min-h-[40px]">
                       Join Session
                     </Button>
                   </CardContent>
@@ -253,7 +254,7 @@ const Index = () => {
                       </p>
                       <p className="text-xs text-blue-600">Calculus</p>
                     </div>
-                    <Button size="sm" variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 shadow-sm">
+                    <Button size="sm" variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 shadow-sm min-h-[40px]">
                       Join Session
                     </Button>
                   </CardContent>
@@ -269,7 +270,7 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50">
       <MobileHeader notifications={notifications} />
       
-      <main className="px-4 pt-4">
+      <main className="px-3 pt-3">
         {renderContent()}
       </main>
       
