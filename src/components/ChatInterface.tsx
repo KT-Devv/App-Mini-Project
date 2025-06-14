@@ -4,12 +4,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Hash, Users, Plus, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Hash, Users, Plus, MessageCircle, ArrowLeft, Share2, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import UserMentionInput from './UserMentionInput';
 import ChatMessage from './ChatMessage';
+import FriendsManager from './FriendsManager';
+import InviteToRoomModal from './InviteToRoomModal';
 
 interface ChatRoom {
   id: string;
@@ -39,6 +41,7 @@ const ChatInterface: React.FC = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomDescription, setNewRoomDescription] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
@@ -320,7 +323,19 @@ const ChatInterface: React.FC = () => {
               </p>
             </div>
           </div>
-          <MessageCircle className="h-6 w-6" />
+          <div className="flex items-center space-x-2">
+            {activeRoom && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/20 p-2"
+                onClick={() => setIsInviteModalOpen(true)}
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+            )}
+            <MessageCircle className="h-6 w-6" />
+          </div>
         </div>
       </div>
 
@@ -346,8 +361,9 @@ const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Create Room Button */}
-            <div className="p-4 border-b border-gray-200">
+            {/* Friends and Create Room Section */}
+            <div className="p-4 border-b border-gray-200 space-y-3">
+              <FriendsManager />
               <Dialog open={isCreateRoomOpen} onOpenChange={setIsCreateRoomOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full bg-blue-600 hover:bg-blue-700">
@@ -411,7 +427,7 @@ const ChatInterface: React.FC = () => {
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500 text-sm">No chat rooms available</p>
-                  <p className="text-gray-400 text-xs mt-1">Create one to get started!</p>
+                  <p className="text-gray-400 text-xs mt-1">Create one or get invited to join!</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -534,6 +550,16 @@ const ChatInterface: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invite Modal */}
+      {activeRoom && (
+        <InviteToRoomModal
+          isOpen={isInviteModalOpen}
+          onClose={() => setIsInviteModalOpen(false)}
+          roomId={activeRoom.id}
+          roomName={activeRoom.name}
+        />
       )}
     </div>
   );
