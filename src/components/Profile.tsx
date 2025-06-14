@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, BookOpen, MessageSquare, FileText, LogOut, Edit } from 'lucide-react';
+import { Calendar, BookOpen, MessageSquare, FileText, LogOut, Edit, Users, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -18,8 +19,28 @@ interface UserProfile {
   created_at: string;
 }
 
+interface UserStats {
+  messagesSent: number;
+  resourcesShared: number;
+  sessionsJoined: number;
+  studySubjects: string[];
+  recentActivities: Array<{
+    type: string;
+    content: string;
+    time: string;
+    subject?: string;
+  }>;
+}
+
 const Profile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userStats, setUserStats] = useState<UserStats>({
+    messagesSent: 0,
+    resourcesShared: 0,
+    sessionsJoined: 0,
+    studySubjects: [],
+    recentActivities: []
+  });
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({
@@ -33,7 +54,6 @@ const Profile = () => {
 
     console.log('Creating profile via edge function for user:', user.id);
 
-    // Invoke the edge function to create the profile
     const { data, error } = await supabase.functions.invoke('create-profile');
 
     if (error) {
@@ -44,6 +64,90 @@ const Profile = () => {
     
     console.log('Profile created successfully via function:', data);
     return data.profile;
+  };
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch messages count
+      const { data: messages } = await supabase
+        .from('chat_messages')
+        .select('id, content, created_at, chat_rooms!inner(name)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Fetch resources count
+      const { data: resources } = await supabase
+        .from('resources')
+        .select('id, title, subject, created_at')
+        .eq('uploaded_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Fetch session participation count
+      const { data: sessions } = await supabase
+        .from('session_participants')
+        .select(`
+          joined_at,
+          study_sessions!inner(title, subject)
+        `)
+        .eq('user_id', user.id)
+        .order('joined_at', { ascending: false })
+        .limit(10);
+
+      // Get unique subjects from resources and sessions
+      const resourceSubjects = resources?.map(r => r.subject) || [];
+      const sessionSubjects = sessions?.map(s => s.study_sessions?.subject).filter(Boolean) || [];
+      const uniqueSubjects = [...new Set([...resourceSubjects, ...sessionSubjects])];
+
+      // Create recent activities
+      const activities = [];
+
+      // Add messages to activities
+      messages?.forEach(msg => {
+        activities.push({
+          type: 'message',
+          content: `Posted in ${msg.chat_rooms?.name || 'chat room'}`,
+          time: new Date(msg.created_at).toLocaleDateString(),
+          subject: msg.chat_rooms?.name
+        });
+      });
+
+      // Add resources to activities
+      resources?.forEach(resource => {
+        activities.push({
+          type: 'resource',
+          content: `Uploaded ${resource.title}`,
+          time: new Date(resource.created_at).toLocaleDateString(),
+          subject: resource.subject
+        });
+      });
+
+      // Add sessions to activities
+      sessions?.forEach(session => {
+        activities.push({
+          type: 'session',
+          content: `Joined ${session.study_sessions?.title || 'study session'}`,
+          time: new Date(session.joined_at).toLocaleDateString(),
+          subject: session.study_sessions?.subject
+        });
+      });
+
+      // Sort activities by date and take most recent
+      activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+      setUserStats({
+        messagesSent: messages?.length || 0,
+        resourcesShared: resources?.length || 0,
+        sessionsJoined: sessions?.length || 0,
+        studySubjects: uniqueSubjects.slice(0, 5), // Limit to 5 subjects
+        recentActivities: activities.slice(0, 5)
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
   };
 
   const fetchProfile = useCallback(async () => {
@@ -86,6 +190,9 @@ const Profile = () => {
           email: data.email
         });
       }
+
+      // Fetch user statistics
+      await fetchUserStats();
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
       toast.error('An unexpected error occurred');
@@ -223,65 +330,87 @@ const Profile = () => {
         </Card>
 
         {/* Activity Stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Card>
             <CardContent className="p-4 text-center">
               <MessageSquare className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-              <p className="text-xl font-bold">24</p>
-              <p className="text-xs text-gray-600">Messages Sent</p>
+              <p className="text-xl font-bold">{userStats.messagesSent}</p>
+              <p className="text-xs text-gray-600">Messages</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <FileText className="h-6 w-6 text-green-600 mx-auto mb-2" />
-              <p className="text-xl font-bold">8</p>
-              <p className="text-xs text-gray-600">Resources Shared</p>
+              <p className="text-xl font-bold">{userStats.resourcesShared}</p>
+              <p className="text-xs text-gray-600">Resources</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Users className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+              <p className="text-xl font-bold">{userStats.sessionsJoined}</p>
+              <p className="text-xs text-gray-600">Sessions</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Study Subjects */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center text-base">
-              <BookOpen className="h-4 w-4 mr-2" />
-              Study Subjects
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="text-xs">Mathematics</Badge>
-              <Badge variant="secondary" className="text-xs">Physics</Badge>
-              <Badge variant="secondary" className="text-xs">Chemistry</Badge>
-              <Badge variant="secondary" className="text-xs">Computer Science</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        {userStats.studySubjects.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center text-base">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Study Subjects
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                {userStats.studySubjects.map((subject, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {subject}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                <MessageSquare className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">Posted in Mathematics Help</p>
-                  <p className="text-xs text-gray-500">2 hours ago</p>
-                </div>
+        {userStats.recentActivities.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {userStats.recentActivities.map((activity, index) => (
+                  <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      {activity.type === 'message' && <MessageSquare className="h-4 w-4 text-blue-600" />}
+                      {activity.type === 'resource' && <FileText className="h-4 w-4 text-green-600" />}
+                      {activity.type === 'session' && <Video className="h-4 w-4 text-purple-600" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{activity.content}</p>
+                      <p className="text-xs text-gray-500">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">Uploaded Calculus Notes</p>
-                  <p className="text-xs text-gray-500">1 day ago</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No activity message */}
+        {userStats.recentActivities.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Yet</h3>
+              <p className="text-gray-600 mb-4">Start participating in chats, sessions, or share resources to see your activity here.</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sign Out */}
         <Button
