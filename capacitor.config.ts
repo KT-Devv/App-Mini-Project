@@ -14,12 +14,13 @@ const config: CapacitorConfig = {
       showSpinner: false
     },
     StatusBar: {
-      style: 'default',
-      backgroundColor: '#ffffff',
+      style: 'light',
+      backgroundColor: '#000000',
       overlaysWebView: false
     },
     Keyboard: {
-      resize: 'ionic',
+      resize: 'body',
+      style: 'dark',
       resizeOnFullScreen: true
     }
   }

@@ -89,15 +89,40 @@
 }
 
 /* Keyboard handling for mobile */
-@media (max-height: 500px) {
-  .min-h-screen {
-    min-height: 100vh;
-    min-height: 100dvh;
-  }
-}
-
-/* Ensure viewport takes keyboard into account */
 .keyboard-adjust {
   height: 100vh;
   height: 100dvh;
+  overflow-y: auto;
+}
+
+/* When keyboard is open, ensure form remains visible */
+@media (max-height: 600px) {
+  .keyboard-adjust {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  
+  .keyboard-adjust .min-h-screen {
+    min-height: auto;
+    height: auto;
+  }
+}
+
+/* Ensure content is accessible when keyboard opens */
+@media (max-height: 500px) {
+  .keyboard-adjust {
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+  }
+}
+
+/* Status bar overlay for Android */
+.status-bar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background-color: #000000;
+  z-index: 9999;
 }
