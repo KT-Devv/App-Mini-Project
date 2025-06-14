@@ -1,14 +1,16 @@
+
 import { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, BookOpen, MessageSquare, FileText, LogOut, Edit, Users, Video, Sparkles, TrendingUp } from 'lucide-react';
+import { LogOut, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import ProfileHeader from './profile/ProfileHeader';
+import ActivityStats from './profile/ActivityStats';
+import StudySubjects from './profile/StudySubjects';
+import RecentActivity from './profile/RecentActivity';
+import LoadingState from './profile/LoadingState';
+import ErrorState from './profile/ErrorState';
 
 interface UserProfile {
   id: string;
@@ -141,7 +143,7 @@ const Profile = () => {
         messagesSent: messages?.length || 0,
         resourcesShared: resources?.length || 0,
         sessionsJoined: sessions?.length || 0,
-        studySubjects: uniqueSubjects.slice(0, 5), // Limit to 5 subjects
+        studySubjects: uniqueSubjects.slice(0, 5),
         recentActivities: activities.slice(0, 5)
       });
     } catch (error) {
@@ -190,7 +192,6 @@ const Profile = () => {
         });
       }
 
-      // Fetch user statistics
       await fetchUserStats();
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -227,268 +228,65 @@ const Profile = () => {
     toast.success('Signed out successfully');
   };
 
+  const handleProfileChange = (field: string, value: string) => {
+    setEditedProfile(prev => ({ ...prev, [field]: value }));
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center px-4 pb-20">
-        <div className="text-center bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 opacity-20 animate-pulse"></div>
-          </div>
-          <p className="text-gray-700 font-medium">Loading your profile...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center px-4 pb-20">
-        <Card className="max-w-sm mx-auto bg-white/90 backdrop-blur-sm border-0 shadow-2xl rounded-3xl overflow-hidden">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Users className="h-8 w-8 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Please sign in</h3>
-            <p className="text-gray-600 leading-relaxed">You need to be signed in to view your profile and access all features.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorState type="not-signed-in" />;
   }
 
   if (!profile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center px-4 pb-20">
-        <Card className="max-w-sm mx-auto bg-white/90 backdrop-blur-sm border-0 shadow-2xl rounded-3xl overflow-hidden">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Users className="h-8 w-8 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Profile not found</h3>
-            <p className="text-gray-600 mb-6 leading-relaxed">There was an issue loading your profile. Let's try again.</p>
-            <Button 
-              onClick={fetchProfile} 
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
-            >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorState type="profile-not-found" onRetry={fetchProfile} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4 pb-24 pt-4">
       <div className="max-w-md mx-auto space-y-6">
-        {/* Profile Header */}
-        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl rounded-3xl overflow-hidden relative">
-          {/* Decorative background */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400 to-purple-500 opacity-10 rounded-full transform translate-x-16 -translate-y-16"></div>
-          
-          <CardContent className="p-6 relative">
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="relative mb-4">
-                <Avatar className="h-24 w-24 border-4 border-white shadow-xl">
-                  <AvatarImage src={profile.avatar_url} />
-                  <AvatarFallback className="text-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold">
-                    {profile.username.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <Sparkles className="h-3 w-3 text-white" />
-                </div>
-              </div>
-              
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-1">
-                {profile.username}
-              </h2>
-              <p className="text-gray-600 text-sm mb-2">{profile.email}</p>
-              <div className="flex items-center text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
-                <Calendar className="h-3 w-3 mr-1" />
-                Joined {new Date(profile.created_at).toLocaleDateString()}
+        <ProfileHeader
+          profile={profile}
+          editing={editing}
+          editedProfile={editedProfile}
+          onEditToggle={() => setEditing(!editing)}
+          onUpdateProfile={updateProfile}
+          onProfileChange={handleProfileChange}
+        />
+
+        <ActivityStats userStats={userStats} />
+
+        <StudySubjects subjects={userStats.studySubjects} />
+
+        <RecentActivity activities={userStats.recentActivities} />
+
+        {/* Quick Tips Section */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-3xl shadow-xl p-6 text-white">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Star className="h-6 w-6 text-white" />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold">Study Tips</h3>
+              <div className="space-y-2 text-purple-100">
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Create focused sessions with clear topics and goals
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Keep sessions small (2-6 people) for better engagement
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Use the chat feature to share resources and notes
+                </p>
               </div>
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 rounded-xl transition-all duration-200"
-              onClick={() => setEditing(!editing)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              {editing ? 'Cancel Edit' : 'Edit Profile'}
-            </Button>
-
-            {editing && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="username" className="text-sm font-medium text-gray-700">Username</Label>
-                    <Input
-                      id="username"
-                      value={editedProfile.username}
-                      onChange={(e) => setEditedProfile({...editedProfile, username: e.target.value})}
-                      className="mt-1 border-blue-200 focus:border-blue-400 focus:ring-blue-400 rounded-xl"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={editedProfile.email}
-                      onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
-                      className="mt-1 border-blue-200 focus:border-blue-400 focus:ring-blue-400 rounded-xl"
-                    />
-                  </div>
-                  <div className="flex space-x-3 pt-2">
-                    <Button 
-                      onClick={updateProfile} 
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
-                    >
-                      Save Changes
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setEditing(false)} 
-                      className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Activity Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-4 text-center relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-500 opacity-10 rounded-full transform translate-x-8 -translate-y-8"></div>
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200">
-                  <MessageSquare className="h-5 w-5 text-white" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{userStats.messagesSent}</p>
-                <p className="text-xs text-gray-600 font-medium">Messages</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-4 text-center relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-green-400 to-green-500 opacity-10 rounded-full transform translate-x-8 -translate-y-8"></div>
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{userStats.resourcesShared}</p>
-                <p className="text-xs text-gray-600 font-medium">Resources</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-4 text-center relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-500 opacity-10 rounded-full transform translate-x-8 -translate-y-8"></div>
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200">
-                  <Users className="h-5 w-5 text-white" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{userStats.sessionsJoined}</p>
-                <p className="text-xs text-gray-600 font-medium">Sessions</p>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
         </div>
-
-        {/* Study Subjects */}
-        {userStats.studySubjects.length > 0 && (
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
-            <CardHeader className="pb-3 border-b border-gray-100">
-              <CardTitle className="flex items-center text-lg font-bold text-gray-900">
-                <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                  <BookOpen className="h-4 w-4 text-white" />
-                </div>
-                Study Subjects
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap gap-2">
-                {userStats.studySubjects.map((subject, index) => (
-                  <Badge 
-                    key={index} 
-                    variant="secondary" 
-                    className="text-xs bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-colors duration-200 rounded-lg px-3 py-1"
-                  >
-                    {subject}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent Activity */}
-        {userStats.recentActivities.length > 0 && (
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
-            <CardHeader className="pb-3 border-b border-gray-100">
-              <CardTitle className="text-lg font-bold text-gray-900">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                {userStats.recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-100 hover:from-blue-50 hover:to-indigo-50 transition-colors duration-200">
-                    <div className="flex-shrink-0">
-                      {activity.type === 'message' && (
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                          <MessageSquare className="h-4 w-4 text-white" />
-                        </div>
-                      )}
-                      {activity.type === 'resource' && (
-                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-white" />
-                        </div>
-                      )}
-                      {activity.type === 'session' && (
-                        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                          <Video className="h-4 w-4 text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{activity.content}</p>
-                      <p className="text-xs text-gray-500">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* No activity message */}
-        {userStats.recentActivities.length === 0 && (
-          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center mx-auto mb-6 opacity-60">
-                <BookOpen className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3">No Activity Yet</h3>
-              <p className="text-gray-600 mb-6 leading-relaxed">Start participating in chats, sessions, or share resources to see your activity here.</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">Join Sessions</Badge>
-                <Badge variant="outline" className="text-xs border-green-200 text-green-700">Share Resources</Badge>
-                <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">Chat with Others</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Sign Out */}
         <Button
