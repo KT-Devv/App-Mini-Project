@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,26 +29,80 @@ const Profile = () => {
   });
   const { user, signOut } = useAuth();
 
-  const fetchProfile = useCallback(async () => {
-    if (!user) return;
+  const createProfile = async () => {
+    if (!user) return null;
+
+    const username = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+    const email = user.email || '';
+
+    console.log('Creating profile for user:', user.id, { username, email });
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('id', user.id)
+      .insert({
+        id: user.id,
+        username,
+        email
+      })
+      .select()
       .single();
 
     if (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error creating profile:', error);
+      toast.error('Failed to create profile');
+      return null;
+    }
+
+    console.log('Profile created successfully:', data);
+    return data;
+  };
+
+  const fetchProfile = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
       return;
     }
 
-    setProfile(data);
-    setEditedProfile({
-      username: data.username,
-      email: data.email
-    });
-    setLoading(false);
+    console.log('Fetching profile for user:', user.id);
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        toast.error('Failed to load profile');
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
+        console.log('No profile found, creating one...');
+        const newProfile = await createProfile();
+        if (newProfile) {
+          setProfile(newProfile);
+          setEditedProfile({
+            username: newProfile.username,
+            email: newProfile.email
+          });
+        }
+      } else {
+        console.log('Profile fetched successfully:', data);
+        setProfile(data);
+        setEditedProfile({
+          username: data.username,
+          email: data.email
+        });
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -63,6 +118,7 @@ const Profile = () => {
       .eq('id', user.id);
 
     if (error) {
+      console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
     } else {
       toast.success('Profile updated successfully!');
@@ -77,11 +133,39 @@ const Profile = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Please sign in</h3>
+          <p className="text-gray-600">You need to be signed in to view your profile.</p>
+        </div>
+      </div>
+    );
   }
 
   if (!profile) {
-    return <div className="flex items-center justify-center h-screen">Profile not found</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Profile not found</h3>
+          <p className="text-gray-600 mb-4">There was an issue loading your profile.</p>
+          <Button onClick={fetchProfile} className="bg-blue-600 hover:bg-blue-700">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
