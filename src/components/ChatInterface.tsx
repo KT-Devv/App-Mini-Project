@@ -75,16 +75,11 @@ const ChatInterface: React.FC = () => {
 
     try {
       console.log('Fetching messages for room:', activeRoom.id);
-      // Query messages with a join to profiles for user information
+      
+      // First, fetch the messages
       const { data: messagesData, error: messagesError } = await supabase
         .from('chat_messages')
-        .select(`
-          *,
-          profiles:user_id (
-            username,
-            email
-          )
-        `)
+        .select('*')
         .eq('room_id', activeRoom.id)
         .order('created_at');
 
@@ -94,13 +89,34 @@ const ChatInterface: React.FC = () => {
         return;
       }
 
+      // Then, fetch user profiles for all unique user IDs
+      const userIds = [...new Set(messagesData?.map(msg => msg.user_id) || [])];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, email')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Continue without profiles rather than failing completely
+      }
+
+      // Create a map of user profiles for quick lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
       // Transform the data to match our interface
-      const transformedMessages = (messagesData || []).map(msg => ({
-        ...msg,
-        username: msg.profiles?.username || msg.profiles?.email?.split('@')[0] || 'Unknown User',
-        display_name: msg.profiles?.username || msg.profiles?.email?.split('@')[0] || 'Unknown User',
-        avatar_url: null
-      }));
+      const transformedMessages = (messagesData || []).map(msg => {
+        const profile = profilesMap.get(msg.user_id);
+        return {
+          ...msg,
+          username: profile?.username || profile?.email?.split('@')[0] || 'Unknown User',
+          display_name: profile?.username || profile?.email?.split('@')[0] || 'Unknown User',
+          avatar_url: null
+        };
+      });
 
       console.log('Messages fetched successfully:', transformedMessages);
       setMessages(transformedMessages);
