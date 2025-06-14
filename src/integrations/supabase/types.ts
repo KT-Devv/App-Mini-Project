@@ -390,6 +390,14 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: number
       }
+      is_room_admin_or_moderator: {
+        Args: { room_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
+      is_room_member: {
+        Args: { room_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
