@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, Phone, Send, Users, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { WebRTCService } from '@/services/webrtcService';
+import { SessionHeader } from './video/SessionHeader';
+import { VideoGrid } from './video/VideoGrid';
+import { VideoControls } from './video/VideoControls';
+import { ChatSidebar } from './video/ChatSidebar';
 
 interface VideoConferenceProps {
   sessionId: string;
@@ -50,9 +50,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const [remoteVideos, setRemoteVideos] = useState<RemoteVideo[]>([]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const webrtcServiceRef = useRef<WebRTCService | null>(null);
-  const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   useEffect(() => {
     if (user) {
@@ -66,10 +64,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       cleanupWebRTC();
     };
   }, [sessionId, user]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const initializeWebRTC = async () => {
     if (!user || !localVideoRef.current) return;
@@ -296,27 +290,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  // Setup remote video refs
-  useEffect(() => {
-    remoteVideos.forEach(({ userId, stream }) => {
-      const videoElement = remoteVideoRefs.current.get(userId);
-      if (videoElement && videoElement.srcObject !== stream) {
-        videoElement.srcObject = stream;
-      }
-    });
-  }, [remoteVideos]);
-
   if (isConnecting) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -330,186 +303,40 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   return (
     <div className="h-screen flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800 p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-white text-lg font-semibold">{sessionTitle}</h1>
-          <div className="flex items-center space-x-2 text-gray-300">
-            <Users className="h-4 w-4" />
-            <span>{participants.length} participants</span>
-          </div>
-        </div>
-        <Button 
-          onClick={handleLeaveSession}
-          variant="destructive"
-          className="bg-red-600 hover:bg-red-700"
-        >
-          <Phone className="h-4 w-4 mr-2" />
-          Leave Session
-        </Button>
-      </div>
+      <SessionHeader 
+        sessionTitle={sessionTitle}
+        participantCount={participants.length}
+        onLeaveSession={handleLeaveSession}
+      />
 
       <div className="flex-1 flex">
         {/* Main Video Area */}
         <div className="flex-1 p-4">
-          <div className="grid grid-cols-2 gap-4 h-full">
-            {/* Local Video */}
-            <Card className="relative bg-gray-800 border-gray-700">
-              <CardContent className="p-0 h-full">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover rounded-lg"
-                />
-                <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  You {isMuted && '(Muted)'} {isVideoOff && '(Video Off)'}
-                </div>
-              </CardContent>
-            </Card>
+          <VideoGrid 
+            localVideoRef={localVideoRef}
+            remoteVideos={remoteVideos}
+            participants={participants}
+            userId={user?.id}
+            isMuted={isMuted}
+            isVideoOff={isVideoOff}
+          />
 
-            {/* Remote Videos */}
-            {remoteVideos.map((remoteVideo) => (
-              <Card key={remoteVideo.userId} className="relative bg-gray-800 border-gray-700">
-                <CardContent className="p-0 h-full">
-                  <video
-                    ref={(el) => {
-                      if (el) {
-                        remoteVideoRefs.current.set(remoteVideo.userId, el);
-                      } else {
-                        remoteVideoRefs.current.delete(remoteVideo.userId);
-                      }
-                    }}
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    {remoteVideo.username}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Participant Avatars for users without video */}
-            {participants
-              .filter(p => p.user_id !== user?.id && !remoteVideos.find(rv => rv.userId === p.user_id))
-              .slice(0, 3 - remoteVideos.length)
-              .map((participant) => (
-                <Card key={participant.user_id} className="relative bg-gray-800 border-gray-700">
-                  <CardContent className="p-0 h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <Avatar className="h-16 w-16 mx-auto mb-2">
-                        <AvatarFallback className="bg-blue-600 text-white">
-                          {participant.profiles?.username?.[0]?.toUpperCase() || 
-                           participant.profiles?.email?.[0]?.toUpperCase() || 
-                           'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p className="text-white text-sm">
-                        {participant.profiles?.username || 
-                         participant.profiles?.email?.split('@')[0] || 
-                         'Unknown User'}
-                      </p>
-                    </div>
-                    <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                      {participant.profiles?.username || 'Participant'}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-
-          {/* Controls */}
-          <div className="flex justify-center space-x-4 mt-4">
-            <Button
-              onClick={toggleMute}
-              variant={isMuted ? "destructive" : "secondary"}
-              size="lg"
-              className="rounded-full h-12 w-12"
-            >
-              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-            </Button>
-            <Button
-              onClick={toggleVideo}
-              variant={isVideoOff ? "destructive" : "secondary"}
-              size="lg"
-              className="rounded-full h-12 w-12"
-            >
-              {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="rounded-full h-12 w-12 text-gray-400"
-            >
-              <Settings className="h-6 w-6" />
-            </Button>
-          </div>
+          <VideoControls 
+            isMuted={isMuted}
+            isVideoOff={isVideoOff}
+            onToggleMute={toggleMute}
+            onToggleVideo={toggleVideo}
+            onLeaveSession={handleLeaveSession}
+          />
         </div>
 
-        {/* Chat Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">Session Chat</h3>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <p>No messages yet. Start the conversation!</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className="flex items-start space-x-2">
-                  <Avatar className="h-6 w-6 mt-1">
-                    <AvatarFallback className="bg-gray-500 text-white text-xs">
-                      {message.user_id === user?.id ? 'Y' : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline space-x-1">
-                      <span className="text-xs font-medium text-gray-900">
-                        {message.user_id === user?.id ? 'You' : 'User'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 break-words">{message.content}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-2">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
-                className="flex-1"
-              />
-              <Button 
-                onClick={sendMessage}
-                disabled={!newMessage.trim()}
-                size="sm"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ChatSidebar 
+          messages={messages}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          onSendMessage={sendMessage}
+          userId={user?.id}
+        />
       </div>
     </div>
   );
