@@ -15,7 +15,7 @@ interface Friend {
   id: string;
   user_id: string;
   friend_id: string;
-  status: string;
+  status: 'pending' | 'accepted' | 'blocked';
   friend_profile?: {
     id: string;
     username: string;
@@ -78,6 +78,7 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
     if (!user) return;
 
     try {
+      // Try to fetch with profile joins first
       const { data, error } = await supabase
         .from('friends')
         .select(`
@@ -92,6 +93,45 @@ const InviteToRoomModal: React.FC<InviteToRoomModalProps> = ({
       setFriends(data || []);
     } catch (error) {
       console.error('Error fetching friends:', error);
+      // Fallback: fetch friends without profile joins
+      try {
+        const { data: friendsData, error: friendsError } = await supabase
+          .from('friends')
+          .select('*')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .eq('status', 'accepted');
+
+        if (friendsError) throw friendsError;
+
+        // Get all unique user IDs from friends
+        const userIds = new Set<string>();
+        friendsData?.forEach(friend => {
+          userIds.add(friend.user_id);
+          userIds.add(friend.friend_id);
+        });
+
+        // Fetch profiles separately
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, email, avatar_url')
+          .in('id', Array.from(userIds));
+
+        // Map profiles to friends
+        const profilesMap = new Map();
+        profilesData?.forEach(profile => {
+          profilesMap.set(profile.id, profile);
+        });
+
+        const friendsWithProfiles = friendsData?.map(friend => ({
+          ...friend,
+          friend_profile: profilesMap.get(friend.friend_id),
+          user_profile: profilesMap.get(friend.user_id)
+        })) || [];
+
+        setFriends(friendsWithProfiles);
+      } catch (fallbackError) {
+        console.error('Error in fallback fetch:', fallbackError);
+      }
     }
   };
 

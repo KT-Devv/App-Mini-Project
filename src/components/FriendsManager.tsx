@@ -53,7 +53,46 @@ const FriendsManager: React.FC = () => {
       setFriends(data || []);
     } catch (error) {
       console.error('Error fetching friends:', error);
-      toast.error('Failed to load friends');
+      // Fallback: fetch friends without profile joins if foreign keys aren't set up yet
+      try {
+        const { data: friendsData, error: friendsError } = await supabase
+          .from('friends')
+          .select('*')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .order('created_at', { ascending: false });
+
+        if (friendsError) throw friendsError;
+
+        // Get all unique user IDs from friends
+        const userIds = new Set<string>();
+        friendsData?.forEach(friend => {
+          userIds.add(friend.user_id);
+          userIds.add(friend.friend_id);
+        });
+
+        // Fetch profiles separately
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, email, avatar_url')
+          .in('id', Array.from(userIds));
+
+        // Map profiles to friends
+        const profilesMap = new Map();
+        profilesData?.forEach(profile => {
+          profilesMap.set(profile.id, profile);
+        });
+
+        const friendsWithProfiles = friendsData?.map(friend => ({
+          ...friend,
+          friend_profile: profilesMap.get(friend.friend_id),
+          user_profile: profilesMap.get(friend.user_id)
+        })) || [];
+
+        setFriends(friendsWithProfiles);
+      } catch (fallbackError) {
+        console.error('Error in fallback fetch:', fallbackError);
+        toast.error('Failed to load friends');
+      }
     }
   };
 

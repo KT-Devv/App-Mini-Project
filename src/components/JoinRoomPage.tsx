@@ -42,6 +42,7 @@ const JoinRoomPage: React.FC = () => {
     }
 
     try {
+      // Try to fetch with profile join first
       const { data, error } = await supabase
         .from('chat_room_invitations')
         .select(`
@@ -54,8 +55,44 @@ const JoinRoomPage: React.FC = () => {
         .single();
 
       if (error || !data) {
-        toast.error('Invalid or expired invite code');
-        navigate('/');
+        // Fallback: try without profile join
+        const { data: inviteData, error: inviteError } = await supabase
+          .from('chat_room_invitations')
+          .select(`
+            *,
+            chat_rooms (name, description, created_at)
+          `)
+          .eq('invitation_code', inviteCode)
+          .eq('status', 'pending')
+          .single();
+
+        if (inviteError || !inviteData) {
+          toast.error('Invalid or expired invite code');
+          navigate('/');
+          return;
+        }
+
+        // Fetch inviter profile separately
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username, email')
+          .eq('id', inviteData.invited_by)
+          .single();
+
+        const enrichedData = {
+          ...inviteData,
+          inviter_profile: profileData || { username: 'Unknown', email: 'unknown@example.com' }
+        };
+
+        // Check if invitation has expired
+        if (enrichedData.expires_at && new Date(enrichedData.expires_at) < new Date()) {
+          toast.error('This invitation has expired');
+          navigate('/');
+          return;
+        }
+
+        setInvitation(enrichedData);
+        setLoading(false);
         return;
       }
 
