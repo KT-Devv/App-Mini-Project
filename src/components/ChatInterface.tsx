@@ -94,19 +94,10 @@ const ChatInterface: React.FC = () => {
       // First ensure user is in default chats
       await ensureUserInDefaultChats();
 
-      // Then fetch chats user is participating in
+      // Fetch chats user is participating in using the fixed RLS policy
       const { data, error } = await supabase
         .from('chats')
-        .select(`
-          id,
-          title,
-          created_at,
-          is_group,
-          chat_participants!inner (
-            user_id
-          )
-        `)
-        .eq('chat_participants.user_id', user.id)
+        .select('*')
         .order('created_at');
 
       if (error) {
@@ -126,7 +117,7 @@ const ChatInterface: React.FC = () => {
       toast.error('An unexpected error occurred.');
       setLoading(false);
     }
-  }, [user, activeRoom, ensureUserInDefaultChats]);
+  }, [user, ensureUserInDefaultChats]);
 
   const fetchMessages = useCallback(async () => {
     if (!activeRoom) return;
