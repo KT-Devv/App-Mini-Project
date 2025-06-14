@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +18,8 @@ interface Message {
   id: string;
   content: string;
   created_at: string;
-  sender_id: string;
-  profiles?: {
-    username: string;
-    email: string;
-  };
+  user_id: string;
+  room_id: string;
 }
 
 interface Participant {
@@ -78,10 +74,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages'
+          table: 'chat_messages'
         },
         (payload) => {
-          if (payload.new.chat_id === sessionId) {
+          if (payload.new.room_id === sessionId) {
             fetchMessages();
           }
         }
@@ -176,18 +172,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const fetchMessages = async () => {
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          id,
-          content,
-          created_at,
-          sender_id,
-          profiles!messages_sender_id_fkey (
-            username,
-            email
-          )
-        `)
-        .eq('chat_id', sessionId)
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', sessionId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -206,11 +193,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
     try {
       const { error } = await supabase
-        .from('messages')
+        .from('chat_messages')
         .insert({
           content: newMessage.trim(),
-          chat_id: sessionId,
-          sender_id: user.id
+          room_id: sessionId,
+          user_id: user.id
         });
 
       if (error) {
@@ -232,7 +219,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       const { error } = await supabase
         .from('study_sessions')
         .update({ 
-          status: 'ended',
           is_active: false 
         })
         .eq('id', sessionId);
@@ -423,17 +409,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
                 <div key={message.id} className="flex items-start space-x-2">
                   <Avatar className="h-6 w-6 mt-1">
                     <AvatarFallback className="bg-gray-500 text-white text-xs">
-                      {message.profiles?.username?.[0]?.toUpperCase() || 
-                       message.profiles?.email?.[0]?.toUpperCase() || 
-                       'U'}
+                      {message.user_id === user?.id ? 'Y' : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline space-x-1">
                       <span className="text-xs font-medium text-gray-900">
-                        {message.profiles?.username || 
-                         message.profiles?.email?.split('@')[0] || 
-                         'Unknown User'}
+                        {message.user_id === user?.id ? 'You' : 'User'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(message.created_at).toLocaleTimeString([], { 

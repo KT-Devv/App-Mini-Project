@@ -22,10 +22,7 @@ interface ChatMessage {
   created_at: string;
   user_id: string;
   room_id: string;
-  profiles?: {
-    username: string;
-    email: string;
-  };
+  user_email?: string;
 }
 
 const ChatInterface: React.FC = () => {
@@ -68,17 +65,7 @@ const ChatInterface: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select(`
-          id,
-          content,
-          created_at,
-          user_id,
-          room_id,
-          profiles!chat_messages_user_id_fkey (
-            username,
-            email
-          )
-        `)
+        .select('*')
         .eq('room_id', activeRoom.id)
         .order('created_at');
 
@@ -282,17 +269,13 @@ const ChatInterface: React.FC = () => {
                     <Avatar className="h-8 w-8 mt-0.5">
                       <AvatarImage src="" />
                       <AvatarFallback className="bg-gray-500 text-white text-xs">
-                        {message.profiles?.username?.[0]?.toUpperCase() || 
-                         message.profiles?.email?.[0]?.toUpperCase() || 
-                         'U'}
+                        {message.user_id === user?.id ? 'Y' : 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline space-x-2">
                         <span className="text-sm font-medium text-gray-900">
-                          {message.profiles?.username || 
-                           message.profiles?.email?.split('@')[0] || 
-                           'Unknown User'}
+                          {message.user_id === user?.id ? 'You' : 'User'}
                         </span>
                         <span className="text-xs text-gray-500">
                           {new Date(message.created_at).toLocaleTimeString([], { 
