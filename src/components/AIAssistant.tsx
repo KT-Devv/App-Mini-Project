@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-//import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -77,135 +76,134 @@ const AIAssistant = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 to-blue-50 pb-20">
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white p-6 shadow-lg">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            <Brain className="h-7 w-7" />
+      {/* Compact Header */}
+      <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white p-4 shadow-lg">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <Brain className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold">AI Study Assistant</h2>
-            <p className="text-sm text-purple-100">Your personal learning companion powered by AI</p>
+            <h2 className="text-lg font-bold">AI Study Assistant</h2>
+            <p className="text-xs text-purple-100">Your personal learning companion powered by AI</p>
           </div>
           <div className="ml-auto">
-            <Sparkles className="h-6 w-6 text-yellow-300 animate-pulse" />
+            <Sparkles className="h-5 w-5 text-yellow-300 animate-pulse" />
           </div>
         </div>
         
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 text-center">
+        {/* Compact Stats */}
+        <div className="grid grid-cols-4 gap-2 text-center">
           {categories.map((category, index) => (
             <div key={index} className="bg-white bg-opacity-10 rounded-lg p-2 backdrop-blur-sm">
-              <p className="text-lg font-bold">{category.count}</p>
+              <p className="text-sm font-bold">{category.count}</p>
               <p className="text-xs text-purple-100">{category.name}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Enhanced Quick Prompts */}
-      <div className="p-4 bg-white border-b shadow-sm">
-        <h3 className="text-sm font-semibold mb-3 flex items-center">
-          <Lightbulb className="h-4 w-4 mr-2 text-yellow-600" />
-          Quick Study Help
+      {/* Compact Quick Prompts */}
+      <div className="p-3 bg-white border-b shadow-sm">
+        <h3 className="text-xs font-semibold mb-2 flex items-center">
+          <Lightbulb className="h-3 w-3 mr-1 text-yellow-600" />
+          Quick Help
         </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {quickPrompts.map((prompt, index) => (
+        <div className="grid grid-cols-3 gap-1">
+          {quickPrompts.slice(0, 6).map((prompt, index) => (
             <Button
               key={index}
               variant="outline"
               size="sm"
-              className="h-auto p-3 justify-start hover:shadow-md transition-all"
+              className="h-auto p-2 text-xs justify-start hover:shadow-sm transition-all"
               onClick={() => handleQuickPrompt(prompt.text)}
             >
-              <div className={`w-8 h-8 ${prompt.color} rounded-lg flex items-center justify-center mr-3 flex-shrink-0`}>
-                <prompt.icon className="h-4 w-4 text-white" />
+              <div className={`w-6 h-6 ${prompt.color} rounded-lg flex items-center justify-center mr-2 flex-shrink-0`}>
+                <prompt.icon className="h-3 w-3 text-white" />
               </div>
               <div className="text-left min-w-0">
-                <p className="text-xs font-medium truncate">{prompt.text}</p>
-                <p className="text-xs text-gray-500">{prompt.subject}</p>
+                <p className="text-xs font-medium truncate">{prompt.text.split(' ').slice(0, 2).join(' ')}</p>
               </div>
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Enhanced Chat Messages */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+      {/* Enhanced Chat Messages - Much Bigger */}
+      <div className="flex-1 p-4 space-y-6 overflow-y-auto">
         {chatHistory.map((chat) => (
           <div
             key={chat.id}
             className={`flex ${chat.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
+              className={`max-w-[85%] px-6 py-4 rounded-3xl shadow-sm ${
                 chat.type === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-md'
-                  : 'bg-white border text-gray-800 shadow-md rounded-bl-md'
+                  ? 'bg-blue-600 text-white rounded-br-lg'
+                  : 'bg-white border text-gray-800 shadow-lg rounded-bl-lg'
               }`}
             >
               {chat.type === 'ai' && (
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-                    <Brain className="h-3 w-3 text-white" />
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-white" />
                   </div>
-                  <span className="text-xs font-semibold text-purple-600">AI Assistant</span>
-                  <Sparkles className="h-3 w-3 text-yellow-500" />
+                  <span className="text-sm font-semibold text-purple-600">AI Assistant</span>
+                  <Sparkles className="h-4 w-4 text-yellow-500" />
                 </div>
               )}
-              <p className="text-sm leading-relaxed">{chat.message}</p>
-              <p className={`text-xs mt-2 ${chat.type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+              <p className="text-base leading-relaxed font-medium">{chat.message}</p>
+              <p className={`text-sm mt-3 ${chat.type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                 {chat.time}
               </p>
             </div>
           </div>
         ))}
         
-        {/* Typing Indicator */}
+        {/* Enhanced Typing Indicator */}
         {isTyping && (
           <div className="flex justify-start animate-fade-in">
-            <div className="bg-white border rounded-2xl px-4 py-3 shadow-sm">
-              <div className="flex items-center space-x-2">
-                <Brain className="h-4 w-4 text-purple-600" />
+            <div className="bg-white border rounded-3xl px-6 py-4 shadow-lg">
+              <div className="flex items-center space-x-3">
+                <Brain className="h-5 w-5 text-purple-600" />
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-xs text-gray-500">AI is thinking...</span>
+                <span className="text-sm text-gray-500">AI is thinking...</span>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Enhanced Message Input */}
-      <div className="bg-white border-t p-4 shadow-lg">
-        <div className="flex space-x-2 mb-2">
+      {/* Enhanced Message Input - Bigger */}
+      <div className="bg-white border-t p-5 shadow-lg">
+        <div className="flex space-x-3 mb-3">
           <div className="flex-1 relative">
             <Input
               placeholder="Ask me anything about your studies..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              className="rounded-full border-gray-300 focus:border-purple-500"
+              className="rounded-2xl border-gray-300 focus:border-purple-500 text-base py-3 px-4"
             />
           </div>
           <Button 
             onClick={handleSendMessage} 
             size="sm" 
-            className="rounded-full w-10 h-10 p-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-md"
+            className="rounded-2xl w-12 h-12 p-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-md"
             disabled={!message.trim() || isTyping}
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-5 w-5" />
           </Button>
         </div>
         <div className="flex justify-between items-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-sm text-gray-500">
             💡 Try asking for explanations, practice problems, or study tips
           </p>
-          <Badge variant="outline" className="text-xs">
-            <MessageCircle className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="text-sm">
+            <MessageCircle className="h-4 w-4 mr-1" />
             {chatHistory.length - 1} messages
           </Badge>
         </div>
