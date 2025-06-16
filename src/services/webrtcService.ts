@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface SignalingMessage {
   type: 'offer' | 'answer' | 'ice-candidate' | 'user-joined' | 'user-left';
-  data: any;
+  data: unknown;
   from: string;
   to?: string;
   sessionId: string;
@@ -13,7 +13,7 @@ export class WebRTCService {
   private localStream: MediaStream | null = null;
   private sessionId: string;
   private userId: string;
-  private channel: any = null;
+  private channel: ReturnType<typeof supabase.channel> | null = null;
   private isCleaningUp: boolean = false;
   private onRemoteStreamCallback?: (userId: string, stream: MediaStream) => void;
   private onUserLeftCallback?: (userId: string) => void;
@@ -85,10 +85,10 @@ export class WebRTCService {
         await this.createPeerConnection(message.from, true);
         break;
       case 'offer':
-        await this.handleOffer(message.from, message.data);
+        await this.handleOffer(message.from, message.data as RTCSessionDescriptionInit);
         break;
       case 'answer':
-        await this.handleAnswer(message.from, message.data);
+        await this.handleAnswer(message.from, message.data as RTCSessionDescriptionInit);
         break;
       case 'ice-candidate':
         await this.handleIceCandidate(message.from, message.data);
@@ -212,7 +212,7 @@ export class WebRTCService {
   private sendSignalingMessage(message: SignalingMessage) {
     if (this.channel && !this.isCleaningUp) {
       try {
-        this.channel.send({
+        this.channel?.send({
           type: 'broadcast',
           event: 'signaling',
           payload: message
@@ -294,7 +294,7 @@ export class WebRTCService {
     // Unsubscribe from channel
     if (this.channel) {
       try {
-        this.channel.unsubscribe();
+        this.channel?.unsubscribe();
       } catch (error) {
         console.error('Error unsubscribing from channel:', error);
       } finally {

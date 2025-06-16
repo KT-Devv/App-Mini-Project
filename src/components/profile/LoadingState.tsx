@@ -1,5 +1,5 @@
 
-import { Sparkles } from 'lucide-react';
+//import { Sparkles } from 'lucide-react';
 
 const LoadingState = () => {
   return (

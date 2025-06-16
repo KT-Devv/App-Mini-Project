@@ -9,6 +9,9 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    "lib": ["dom", "esnext"],
+    "strict": true,
+    "types": ["@types/deno"],
     "noImplicitAny": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,
@@ -17,3 +20,4 @@
     "strictNullChecks": false
   }
 }
+

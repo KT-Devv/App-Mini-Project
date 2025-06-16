@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, MessageCircle, Video, FileText, Brain, Check, X } from 'lucide-react';
+import { Bell, MessageCircle, Video, FileText, Brain, Check} from 'lucide-react';
+//, X 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
