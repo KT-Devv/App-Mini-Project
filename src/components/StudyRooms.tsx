@@ -292,11 +292,10 @@ const StudyRooms = () => {
   };
 
   const openVideoSession = (sessionUrl: string) => {
-    const sessionId = sessionUrl.split('/').pop();
-    const session = sessions.find(s => s.session_url === sessionUrl);
-    if (session) {
-      setCurrentVideoSession(session);
-    }
+      const session = sessions.find(s => s.session_url === sessionUrl);
+      if (session) {
+          setCurrentVideoSession(session);
+      }
   };
 
   const handleLeaveVideoSession = () => {

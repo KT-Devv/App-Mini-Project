@@ -3,9 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+//import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Brain, Send, Lightbulb, BookOpen, Calculator, Microscope, History, Sparkles, MessageCircle, Zap, Users, Target } from 'lucide-react';
+// Zap, Users, Target 
+import { Brain, Send, Lightbulb, BookOpen, Calculator, Microscope, History, Sparkles, MessageCircle} from 'lucide-react';
 
 const AIAssistant = () => {
   const [message, setMessage] = useState('');

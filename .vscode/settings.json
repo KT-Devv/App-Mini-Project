@@ -5,6 +5,7 @@
         "Postgrest",
         "sonner",
         "supabase",
-        "uploaders"
+        "uploaders",
+        "webrtc"
     ]
 }

@@ -38,6 +38,10 @@ interface RemoteVideo {
   username: string;
 }
 
+interface Channel {
+  unsubscribe: () => Promise<"error" | "ok" | "timed out">;
+}
+
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -50,7 +54,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcServiceRef = useRef<WebRTCService | null>(null);
-  const channelsRef = useRef<any[]>([]);
+  const channelsRef = useRef<Channel[]>([]);
   const isCleaningUpRef = useRef(false);
 
   useEffect(() => {
@@ -83,14 +87,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const cleanupChannels = async () => {
     const promises = channelsRef.current.map(async (channel) => {
       try {
-        if (channel && typeof channel.unsubscribe === 'function') {
-          await channel.unsubscribe();
-        }
+        const result = await channel.unsubscribe();
+        console.log(`Unsubscribe result: ${result}`);
       } catch (error) {
         console.error('Error unsubscribing from channel:', error);
       }
     });
-    
+
     await Promise.allSettled(promises);
     channelsRef.current = [];
   };

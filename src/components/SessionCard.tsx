@@ -28,7 +28,7 @@ interface SessionCardProps {
   isUserInSession: boolean;
   onJoinSession: (sessionId: string) => void;
   onLeaveSession: (sessionId: string) => void;
-  onShareSession: (session: any) => void;
+  onShareSession: (session: unknown) => void;
   onOpenSession: (sessionUrl: string) => void;
 }
 
