@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,6 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
 
   const fetchUsers = async () => {
     try {
-      // Use the existing profiles table instead of user_profiles
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, email');
@@ -91,7 +89,6 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
     setShowSuggestions(false);
     setMentionStart(-1);
     
-    // Focus back on textarea
     setTimeout(() => {
       if (textareaRef.current) {
         const newCursorPos = mentionStart + user.username.length + 2;
@@ -169,7 +166,7 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
 
   return (
     <div className="relative">
-      <div className="flex items-end space-x-3">
+      <div className="flex items-end space-x-4 bg-white rounded-2xl border-2 border-slate-200 p-3 shadow-sm transition-all duration-200 focus-within:border-blue-300 focus-within:shadow-md">
         <div className="flex-1 relative">
           <Textarea
             ref={textareaRef}
@@ -177,55 +174,62 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
             onChange={handleInputChange}
             onKeyPress={onKeyPress}
             placeholder={placeholder}
-            className="min-h-[60px] max-h-[120px] resize-none border-2 border-gray-200 focus:border-blue-500 transition-colors bg-white"
-            rows={2}
+            className="min-h-[50px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-slate-900 placeholder:text-slate-500"
+            rows={1}
             disabled={disabled}
           />
           
           {showSuggestions && filteredUsers.length > 0 && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto z-50">
-              {filteredUsers.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => insertMention(user)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                    {user.username[0]?.toUpperCase() || user.email[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm">{user.username}</div>
-                    <div className="text-xs text-gray-500">@{user.username}</div>
-                  </div>
-                </button>
-              ))}
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
+              <div className="p-2">
+                <div className="text-xs font-medium text-slate-500 mb-2 px-2">Mention someone:</div>
+                {filteredUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => insertMention(user)}
+                    className="w-full px-3 py-3 text-left hover:bg-slate-50 rounded-lg flex items-center space-x-3 transition-colors duration-150"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      {user.username[0]?.toUpperCase() || user.email[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-slate-900">{user.username}</div>
+                      <div className="text-xs text-slate-500">@{user.username}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
         
         <Button
           onClick={isRecording ? stopRecording : startRecording}
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className={`p-2 ${isRecording ? 'bg-red-50 border-red-200 text-red-600' : ''}`}
+          className={`p-3 rounded-xl transition-all duration-200 ${
+            isRecording 
+              ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
         >
-          {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
         
         <Button 
           onClick={onSend}
           disabled={!value.trim() || disabled}
-          className="bg-blue-600 hover:bg-blue-700 px-6"
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-md transition-all duration-200 disabled:opacity-50"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-5 w-5" />
         </Button>
       </div>
       
       {isRecording && (
-        <div className="absolute -top-12 left-0 right-0 flex items-center justify-center">
-          <div className="bg-red-500 text-white px-3 py-1 rounded-full text-sm flex items-center space-x-2">
+        <div className="absolute -top-16 left-0 right-0 flex items-center justify-center">
+          <div className="bg-red-500 text-white px-4 py-2 rounded-full text-sm flex items-center space-x-2 shadow-lg">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <span>Recording...</span>
+            <span>Recording audio...</span>
           </div>
         </div>
       )}

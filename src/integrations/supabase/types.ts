@@ -41,6 +41,82 @@ export type Database = {
           },
         ]
       }
+      chat_room_invitations: {
+        Row: {
+          created_at: string
+          email: string | null
+          expires_at: string | null
+          id: string
+          invitation_code: string | null
+          invited_by: string
+          invited_user: string | null
+          room_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invitation_code?: string | null
+          invited_by: string
+          invited_user?: string | null
+          room_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invitation_code?: string | null
+          invited_by?: string
+          invited_user?: string | null
+          room_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_invitations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_room_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_rooms: {
         Row: {
           created_at: string
@@ -65,6 +141,30 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+        }
+        Relationships: []
+      }
+      friends: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -289,6 +389,14 @@ export type Database = {
       get_unread_notification_count: {
         Args: { target_user_id: string }
         Returns: number
+      }
+      is_room_admin_or_moderator: {
+        Args: { room_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
+      is_room_member: {
+        Args: { room_uuid: string; user_uuid: string }
+        Returns: boolean
       }
     }
     Enums: {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from 'lucide-react';
+import { Plus, Users, Clock, Video, Star, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -322,68 +322,164 @@ const StudyRooms = () => {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading study sessions...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mx-auto flex items-center justify-center">
+            <Sparkles className="h-6 w-6 text-white animate-pulse" />
+          </div>
+          <p className="text-slate-600 font-medium">Loading study sessions...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 pb-20 p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Study Rooms</h2>
-          <p className="text-gray-600">Join or create collaborative study sessions</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+        {/* Enhanced Header */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Video className="h-6 w-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Study Rooms
+            </h1>
+          </div>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed">
+            Join collaborative study sessions with peers or create your own learning environment
+          </p>
+          
+          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Plus className="h-5 w-5 mr-2" />
+                Create New Session
+              </Button>
+            </DialogTrigger>
+          </Dialog>
         </div>
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Session
-            </Button>
-          </DialogTrigger>
-        </Dialog>
-      </div>
 
-      {/* Active Sessions */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Active Sessions</h3>
-        <div className="grid gap-4">
-          {sessions.filter(session => session.is_active && session.status === 'live').length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No active sessions available. Create one to get started!</p>
-          ) : (
-            sessions.filter(session => session.is_active && session.status === 'live').map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                isUserInSession={isUserInSession(session)}
-                onJoinSession={joinSession}
-                onLeaveSession={leaveSession}
-                onShareSession={openShareModal}
-                onOpenSession={openVideoSession}
-              />
-            ))
-          )}
+        {/* Active Sessions Section */}
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              </div>
+              <h2 className="text-xl font-semibold text-white">Live Sessions</h2>
+              <div className="bg-white/20 px-3 py-1 rounded-full">
+                <span className="text-white text-sm font-medium">
+                  {sessions.filter(session => session.is_active && session.status === 'live').length} active
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {sessions.filter(session => session.is_active && session.status === 'live').length === 0 ? (
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full mx-auto flex items-center justify-center">
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">No Active Sessions</h3>
+                <p className="text-slate-600 max-w-md mx-auto">
+                  Be the first to start a study session! Create one now and invite others to join your learning journey.
+                </p>
+                <Button 
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Session
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {sessions.filter(session => session.is_active && session.status === 'live').map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    isUserInSession={isUserInSession(session)}
+                    onJoinSession={joinSession}
+                    onLeaveSession={leaveSession}
+                    onShareSession={openShareModal}
+                    onOpenSession={openVideoSession}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Upcoming Sessions */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Upcoming Sessions</h3>
-        <div className="grid gap-4">
-          {sessions.filter(session => session.status === 'scheduled').length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No upcoming sessions scheduled.</p>
-          ) : (
-            sessions.filter(session => session.status === 'scheduled').map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                isUserInSession={isUserInSession(session)}
-                onJoinSession={joinSession}
-                onLeaveSession={leaveSession}
-                onShareSession={openShareModal}
-                onOpenSession={openVideoSession}
-              />
-            ))
-          )}
+        {/* Upcoming Sessions Section */}
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+            <div className="flex items-center space-x-3">
+              <Clock className="h-6 w-6 text-white" />
+              <h2 className="text-xl font-semibold text-white">Upcoming Sessions</h2>
+              <div className="bg-white/20 px-3 py-1 rounded-full">
+                <span className="text-white text-sm font-medium">
+                  {sessions.filter(session => session.status === 'scheduled').length} scheduled
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {sessions.filter(session => session.status === 'scheduled').length === 0 ? (
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full mx-auto flex items-center justify-center">
+                  <Clock className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">No Upcoming Sessions</h3>
+                <p className="text-slate-600 max-w-md mx-auto">
+                  Schedule your next study session in advance to help organize your learning schedule and notify participants.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {sessions.filter(session => session.status === 'scheduled').map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    isUserInSession={isUserInSession(session)}
+                    onJoinSession={joinSession}
+                    onLeaveSession={leaveSession}
+                    onShareSession={openShareModal}
+                    onOpenSession={openVideoSession}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Tips Section */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-3xl shadow-xl p-6 text-white">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Star className="h-6 w-6 text-white" />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold">Study Tips</h3>
+              <div className="space-y-2 text-purple-100">
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Create focused sessions with clear topics and goals
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Keep sessions small (2-6 people) for better engagement
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Use the chat feature to share resources and notes
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -31,7 +31,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, currentUserId }) => 
         return (
           <span 
             key={index} 
-            className="bg-blue-100 text-blue-800 px-1 rounded font-medium"
+            className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md font-medium"
           >
             @{part}
           </span>
@@ -41,30 +41,61 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, currentUserId }) => 
     });
   };
 
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+    
+    return date.toLocaleDateString([], { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   return (
-    <div className="flex items-start space-x-3">
-      <Avatar className="h-10 w-10 mt-1">
+    <div className="flex items-start space-x-4 group hover:bg-slate-50 -mx-2 px-2 py-3 rounded-xl transition-colors duration-200">
+      <Avatar className="h-12 w-12 ring-2 ring-white shadow-sm flex-shrink-0 mt-1">
         <AvatarImage src={message.avatar_url || ""} />
-        <AvatarFallback className={`text-white text-sm ${
-          isOwnMessage ? 'bg-blue-500' : 'bg-gray-500'
+        <AvatarFallback className={`text-white font-semibold ${
+          isOwnMessage 
+            ? 'bg-gradient-to-br from-blue-500 to-indigo-600' 
+            : 'bg-gradient-to-br from-slate-500 to-slate-600'
         }`}>
           {avatarFallback}
         </AvatarFallback>
       </Avatar>
+      
       <div className="flex-1 min-w-0">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-baseline space-x-2 mb-2">
-            <span className="text-sm font-semibold text-gray-900">
+        <div className={`rounded-2xl p-4 shadow-sm border transition-all duration-200 ${
+          isOwnMessage
+            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-200 ml-8'
+            : 'bg-white border-slate-200 mr-8 group-hover:shadow-md'
+        }`}>
+          <div className="flex items-baseline justify-between mb-2">
+            <span className={`text-sm font-semibold ${
+              isOwnMessage ? 'text-blue-100' : 'text-slate-900'
+            }`}>
               {isOwnMessage ? 'You' : displayName}
             </span>
-            <span className="text-xs text-gray-500">
-              {new Date(message.created_at).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
+            <span className={`text-xs ml-3 flex-shrink-0 ${
+              isOwnMessage ? 'text-blue-200' : 'text-slate-500'
+            }`}>
+              {formatTime(message.created_at)}
             </span>
           </div>
-          <div className="text-gray-700 break-words">
+          
+          <div className={`break-words leading-relaxed ${
+            isOwnMessage ? 'text-white' : 'text-slate-800'
+          }`}>
             {processContent(message.content)}
           </div>
         </div>

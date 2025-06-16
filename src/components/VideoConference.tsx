@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, Phone, Send, Users, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { WebRTCService } from '@/services/webrtcService';
+import { SessionHeader } from './video/SessionHeader';
+import { VideoGrid } from './video/VideoGrid';
+import { VideoControls } from './video/VideoControls';
+import { ChatSidebar } from './video/ChatSidebar';
 
 interface VideoConferenceProps {
   sessionId: string;
@@ -32,97 +32,172 @@ interface Participant {
   };
 }
 
+interface RemoteVideo {
+  userId: string;
+  stream: MediaStream;
+  username: string;
+}
+
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
+  const [remoteVideos, setRemoteVideos] = useState<RemoteVideo[]>([]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const webrtcServiceRef = useRef<WebRTCService | null>(null);
+  const channelsRef = useRef<any[]>([]);
+  const isCleaningUpRef = useRef(false);
 
   useEffect(() => {
-    initializeMedia();
-    fetchParticipants();
-    fetchMessages();
-
-    // Set up real-time subscriptions
-    const participantsChannel = supabase
-      .channel(`session-participants-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'session_participants',
-          filter: `session_id=eq.${sessionId}`
-        },
-        () => {
-          fetchParticipants();
-        }
-      )
-      .subscribe();
-
-    const messagesChannel = supabase
-      .channel(`session-messages-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages'
-        },
-        (payload) => {
-          if (payload.new.room_id === sessionId) {
-            fetchMessages();
-          }
-        }
-      )
-      .subscribe();
+    if (user) {
+      initializeWebRTC();
+      fetchParticipants();
+      fetchMessages();
+      setupRealtimeSubscriptions();
+    }
 
     return () => {
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(messagesChannel);
-      cleanupMedia();
+      cleanup();
     };
-  }, [sessionId]);
+  }, [sessionId, user]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  const cleanup = async () => {
+    if (isCleaningUpRef.current) return;
+    isCleaningUpRef.current = true;
 
-  const initializeMedia = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-      
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+      await cleanupWebRTC();
+      await cleanupChannels();
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    } finally {
+      isCleaningUpRef.current = false;
+    }
+  };
+
+  const cleanupChannels = async () => {
+    const promises = channelsRef.current.map(async (channel) => {
+      try {
+        if (channel && typeof channel.unsubscribe === 'function') {
+          await channel.unsubscribe();
+        }
+      } catch (error) {
+        console.error('Error unsubscribing from channel:', error);
       }
+    });
+    
+    await Promise.allSettled(promises);
+    channelsRef.current = [];
+  };
+
+  const initializeWebRTC = async () => {
+    if (!user || !localVideoRef.current) return;
+
+    try {
+      const webrtcService = new WebRTCService(sessionId, user.id);
+      webrtcServiceRef.current = webrtcService;
+
+      // Setup callbacks
+      webrtcService.onRemoteStream((userId, stream) => {
+        console.log('Adding remote stream for user:', userId);
+        const participant = participants.find(p => p.user_id === userId);
+        const username = participant?.profiles?.username || 'Unknown User';
+        
+        setRemoteVideos(prev => {
+          const existing = prev.find(v => v.userId === userId);
+          if (existing) {
+            return prev.map(v => v.userId === userId ? { ...v, stream } : v);
+          }
+          return [...prev, { userId, stream, username }];
+        });
+      });
+
+      webrtcService.onUserLeft((userId) => {
+        console.log('User left:', userId);
+        setRemoteVideos(prev => prev.filter(v => v.userId !== userId));
+      });
+
+      await webrtcService.initialize(localVideoRef.current);
       setIsConnecting(false);
     } catch (error) {
-      console.error('Error accessing media devices:', error);
+      console.error('Error initializing WebRTC:', error);
       toast.error('Failed to access camera/microphone');
       setIsConnecting(false);
     }
   };
 
-  const cleanupMedia = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+  const cleanupWebRTC = async () => {
+    if (webrtcServiceRef.current) {
+      try {
+        webrtcServiceRef.current.cleanup();
+      } catch (error) {
+        console.error('Error cleaning up WebRTC:', error);
+      } finally {
+        webrtcServiceRef.current = null;
+      }
+    }
+  };
+
+  const setupRealtimeSubscriptions = () => {
+    // Clean up any existing channels first
+    cleanupChannels();
+
+    try {
+      const participantsChannel = supabase
+        .channel(`session-participants-${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'session_participants',
+            filter: `session_id=eq.${sessionId}`
+          },
+          () => {
+            fetchParticipants();
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to participants channel');
+          }
+        });
+
+      const messagesChannel = supabase
+        .channel(`session-messages-${sessionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages'
+          },
+          (payload) => {
+            if (payload.new.room_id === sessionId) {
+              fetchMessages();
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to messages channel');
+          }
+        });
+
+      // Store channels for cleanup
+      channelsRef.current = [participantsChannel, messagesChannel];
+    } catch (error) {
+      console.error('Error setting up realtime subscriptions:', error);
     }
   };
 
   const fetchParticipants = async () => {
     try {
-      // Get participants
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
         .select('session_id, user_id, joined_at')
@@ -133,7 +208,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         return;
       }
 
-      // Then get profiles for each participant
       if (participantsData && participantsData.length > 0) {
         const userIds = participantsData.map(p => p.user_id);
         const { data: profilesData, error: profilesError } = await supabase
@@ -145,7 +219,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
           console.error('Error fetching profiles:', profilesError);
         }
 
-        // Combine participants with their profiles
         const participantsWithProfiles = participantsData.map(participant => ({
           ...participant,
           profiles: profilesData?.find(profile => profile.id === participant.user_id) || {
@@ -156,7 +229,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
         setParticipants(participantsWithProfiles);
 
-        // Check if session should end (no participants left)
         if (participantsWithProfiles.length === 0) {
           await endSession();
         }
@@ -215,7 +287,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const endSession = async () => {
     try {
-      // Update session status to ended
       const { error } = await supabase
         .from('study_sessions')
         .update({ 
@@ -235,28 +306,21 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   };
 
   const toggleMute = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = isMuted;
-        setIsMuted(!isMuted);
-      }
+    if (webrtcServiceRef.current) {
+      const muted = webrtcServiceRef.current.toggleMute();
+      setIsMuted(muted);
     }
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = isVideoOff;
-        setIsVideoOff(!isVideoOff);
-      }
+    if (webrtcServiceRef.current) {
+      const videoOff = webrtcServiceRef.current.toggleVideo();
+      setIsVideoOff(videoOff);
     }
   };
 
   const handleLeaveSession = async () => {
     try {
-      // Remove user from participants
       const { error } = await supabase
         .from('session_participants')
         .delete()
@@ -267,21 +331,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         console.error('Error leaving session:', error);
       }
 
-      cleanupMedia();
+      await cleanup();
       onLeaveSession();
     } catch (error) {
       console.error('Unexpected error leaving session:', error);
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 
@@ -298,160 +351,40 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   return (
     <div className="h-screen flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800 p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-white text-lg font-semibold">{sessionTitle}</h1>
-          <div className="flex items-center space-x-2 text-gray-300">
-            <Users className="h-4 w-4" />
-            <span>{participants.length} participants</span>
-          </div>
-        </div>
-        <Button 
-          onClick={handleLeaveSession}
-          variant="destructive"
-          className="bg-red-600 hover:bg-red-700"
-        >
-          <Phone className="h-4 w-4 mr-2" />
-          Leave Session
-        </Button>
-      </div>
+      <SessionHeader 
+        sessionTitle={sessionTitle}
+        participantCount={participants.length}
+        onLeaveSession={handleLeaveSession}
+      />
 
       <div className="flex-1 flex">
         {/* Main Video Area */}
         <div className="flex-1 p-4">
-          <div className="grid grid-cols-2 gap-4 h-full">
-            {/* Local Video */}
-            <Card className="relative bg-gray-800 border-gray-700">
-              <CardContent className="p-0 h-full">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover rounded-lg"
-                />
-                <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  You
-                </div>
-              </CardContent>
-            </Card>
+          <VideoGrid 
+            localVideoRef={localVideoRef}
+            remoteVideos={remoteVideos}
+            participants={participants}
+            userId={user?.id}
+            isMuted={isMuted}
+            isVideoOff={isVideoOff}
+          />
 
-            {/* Participants Grid */}
-            {participants.slice(0, 3).map((participant) => (
-              <Card key={participant.user_id} className="relative bg-gray-800 border-gray-700">
-                <CardContent className="p-0 h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <Avatar className="h-16 w-16 mx-auto mb-2">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        {participant.profiles?.username?.[0]?.toUpperCase() || 
-                         participant.profiles?.email?.[0]?.toUpperCase() || 
-                         'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="text-white text-sm">
-                      {participant.profiles?.username || 
-                       participant.profiles?.email?.split('@')[0] || 
-                       'Unknown User'}
-                    </p>
-                  </div>
-                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    {participant.profiles?.username || 'Participant'}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Controls */}
-          <div className="flex justify-center space-x-4 mt-4">
-            <Button
-              onClick={toggleMute}
-              variant={isMuted ? "destructive" : "secondary"}
-              size="lg"
-              className="rounded-full h-12 w-12"
-            >
-              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-            </Button>
-            <Button
-              onClick={toggleVideo}
-              variant={isVideoOff ? "destructive" : "secondary"}
-              size="lg"
-              className="rounded-full h-12 w-12"
-            >
-              {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="rounded-full h-12 w-12 text-gray-400"
-            >
-              <Settings className="h-6 w-6" />
-            </Button>
-          </div>
+          <VideoControls 
+            isMuted={isMuted}
+            isVideoOff={isVideoOff}
+            onToggleMute={toggleMute}
+            onToggleVideo={toggleVideo}
+            onLeaveSession={handleLeaveSession}
+          />
         </div>
 
-        {/* Chat Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">Session Chat</h3>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <p>No messages yet. Start the conversation!</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className="flex items-start space-x-2">
-                  <Avatar className="h-6 w-6 mt-1">
-                    <AvatarFallback className="bg-gray-500 text-white text-xs">
-                      {message.user_id === user?.id ? 'Y' : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline space-x-1">
-                      <span className="text-xs font-medium text-gray-900">
-                        {message.user_id === user?.id ? 'You' : 'User'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 break-words">{message.content}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-2">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
-                className="flex-1"
-              />
-              <Button 
-                onClick={sendMessage}
-                disabled={!newMessage.trim()}
-                size="sm"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ChatSidebar 
+          messages={messages}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          onSendMessage={sendMessage}
+          userId={user?.id}
+        />
       </div>
     </div>
   );

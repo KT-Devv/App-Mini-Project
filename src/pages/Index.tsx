@@ -1,9 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Video, Users, Brain, FileText, Plus, TrendingUp, Clock, Star, } from 'lucide-react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
 import ChatInterface from '../components/ChatInterface';
@@ -11,6 +7,11 @@ import StudyRooms from '../components/StudyRooms';
 import ResourceHub from '../components/ResourceHub';
 import AIAssistant from '../components/AIAssistant';
 import Profile from '../components/Profile';
+import WelcomeSection from '../components/home/WelcomeSection';
+import QuickActions from '../components/home/QuickActions';
+import RecentActivitySection from '../components/home/RecentActivitySection';
+import ActiveStudyGroups from '../components/home/ActiveStudyGroups';
+import EmptyState from '../components/home/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -219,13 +220,6 @@ const Index = () => {
     }
   }, [user?.id]);
 
-  const quickActions = [
-    { title: 'Ask Question', description: 'Get help from peers', icon: MessageCircle, color: 'bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('chat') },
-    { title: 'Study Session', description: 'Join video study room', icon: Video, color: 'bg-gradient-to-br from-green-500 to-green-600', action: () => setActiveTab('study-rooms') },
-    { title: 'AI Assistant', description: 'Smart study help', icon: Brain, color: 'bg-gradient-to-br from-purple-500 to-purple-600', action: () => setActiveTab('ai-assistant') },
-    { title: 'Resources', description: 'Share notes & files', icon: FileText, color: 'bg-gradient-to-br from-orange-500 to-orange-600', action: () => setActiveTab('resources') },
-  ];
-
   const renderContent = () => {
     switch (activeTab) {
       case 'chat':
@@ -241,150 +235,23 @@ const Index = () => {
       default:
         return (
           <div className="space-y-4 pb-24 animate-fade-in px-1">
-            {/* Enhanced Welcome Section */}
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex-1">
-                  <h2 className="text-lg font-bold mb-1 leading-tight">{greeting}, {username}! 🌟</h2>
-                  <p className="text-blue-100 text-sm">Ready to learn something new today?</p>
-                </div>
-                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
-                  <Star className="h-5 w-5 text-yellow-300" />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
-                  <p className="text-xl font-bold">{userStats.sessions}</p>
-                  <p className="text-xs text-blue-200">Sessions</p>
-                </div>
-                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
-                  <p className="text-xl font-bold">{userStats.messages}</p>
-                  <p className="text-xs text-blue-200">Messages</p>
-                </div>
-                <div className="bg-white bg-opacity-10 rounded-xl p-3 min-h-[60px] flex flex-col justify-center">
-                  <p className="text-xl font-bold">{userStats.resources}</p>
-                  <p className="text-xs text-blue-200">Resources</p>
-                </div>
-              </div>
-            </div>
+            <WelcomeSection 
+              greeting={greeting}
+              username={username}
+              userStats={userStats}
+            />
 
-            {/* Quick Actions */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center px-1">
-                <span>Quick Actions</span>
-                <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 animate-pulse"></div>
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {quickActions.map((action, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 shadow-md active:scale-95" onClick={action.action}>
-                    <CardContent className="p-4 min-h-[100px] flex flex-col">
-                      <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-3 shadow-md`}>
-                        <action.icon className="h-6 w-6 text-white" />
-                      </div>
-                      <h4 className="font-semibold text-sm mb-1 leading-tight">{action.title}</h4>
-                      <p className="text-xs text-gray-600 leading-relaxed flex-1">{action.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            <QuickActions onNavigate={setActiveTab} />
 
-            {/* Recent Activity */}
-            {recentActivities.length > 0 && (
-              <div className="px-1">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-lg font-semibold">Recent Activity</h3>
-                  <Button variant="ghost" size="sm" className="text-blue-600 min-h-[40px]">View All</Button>
-                </div>
-                <div className="space-y-3">
-                  {recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-4 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow min-h-[64px] active:bg-gray-50">
-                      <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-gray-600">{activity.avatar}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-sm truncate">{activity.user}</p>
-                          {activity.type === 'message' && <MessageCircle className="h-3 w-3 text-blue-600 flex-shrink-0" />}
-                          {activity.type === 'session' && <Video className="h-3 w-3 text-green-600 flex-shrink-0" />}
-                          {activity.type === 'resource' && <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />}
-                        </div>
-                        <p className="text-xs text-gray-600 flex items-center">
-                          <span className="truncate">{activity.subject}</span>
-                          <span className="mx-1">•</span>
-                          <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
-                          <span className="flex-shrink-0">{activity.time}</span>
-                        </p>
-                      </div>
-                      <Badge 
-                        variant={activity.status === 'joined' ? 'default' : activity.status === 'sent' ? 'secondary' : 'outline'} 
-                        className="text-xs flex-shrink-0"
-                      >
-                        {activity.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <RecentActivitySection activities={recentActivities} />
 
-            {/* Active Study Groups */}
-            {activeSessions.length > 0 && (
-              <div className="px-1">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-lg font-semibold">Active Study Groups</h3>
-                  <Button variant="ghost" size="sm" className="text-blue-600 min-h-[40px]" onClick={() => setActiveTab('study-rooms')}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Join
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {activeSessions.map((session, index) => (
-                    <Card key={session.id} className="border-green-200 bg-gradient-to-br from-green-50 to-green-100 shadow-md">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                            <p className="text-sm font-semibold text-green-800">{session.title}</p>
-                          </div>
-                          <Badge className="bg-green-600 text-white text-xs">Live</Badge>
-                        </div>
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs text-green-600 flex items-center">
-                            <Users className="h-3 w-3 mr-1" />
-                            {session.session_participants?.length || 0} members online
-                          </p>
-                          <p className="text-xs text-green-600">{session.subject}</p>
-                        </div>
-                        <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 shadow-sm min-h-[40px]" onClick={() => setActiveTab('study-rooms')}>
-                          Join Session
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
+            <ActiveStudyGroups 
+              sessions={activeSessions}
+              onNavigate={setActiveTab}
+            />
 
-            {/* No activity message */}
             {recentActivities.length === 0 && activeSessions.length === 0 && (
-              <div className="px-1">
-                <Card className="border-dashed border-2 border-gray-300">
-                  <CardContent className="p-6 text-center">
-                    <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Get Started</h3>
-                    <p className="text-gray-600 mb-4">Join a study session or start chatting to see your activity here.</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => setActiveTab('chat')} className="flex-1">
-                        Start Chatting
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setActiveTab('study-rooms')} className="flex-1">
-                        Join Session
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <EmptyState onNavigate={setActiveTab} />
             )}
           </div>
         );

@@ -1,15 +1,16 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, BookOpen, MessageSquare, FileText, LogOut, Edit, Users, Video } from 'lucide-react';
+import { LogOut, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import ProfileHeader from './profile/ProfileHeader';
+import ActivityStats from './profile/ActivityStats';
+import StudySubjects from './profile/StudySubjects';
+import RecentActivity from './profile/RecentActivity';
+import LoadingState from './profile/LoadingState';
+import ErrorState from './profile/ErrorState';
 
 interface UserProfile {
   id: string;
@@ -142,7 +143,7 @@ const Profile = () => {
         messagesSent: messages?.length || 0,
         resourcesShared: resources?.length || 0,
         sessionsJoined: sessions?.length || 0,
-        studySubjects: uniqueSubjects.slice(0, 5), // Limit to 5 subjects
+        studySubjects: uniqueSubjects.slice(0, 5),
         recentActivities: activities.slice(0, 5)
       });
     } catch (error) {
@@ -191,7 +192,6 @@ const Profile = () => {
         });
       }
 
-      // Fetch user statistics
       await fetchUserStats();
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -228,194 +228,70 @@ const Profile = () => {
     toast.success('Signed out successfully');
   };
 
+  const handleProfileChange = (field: string, value: string) => {
+    setEditedProfile(prev => ({ ...prev, [field]: value }));
+  };
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen px-4 pb-20">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen px-4 pb-20">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-sm mx-auto">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Please sign in</h3>
-          <p className="text-gray-600">You need to be signed in to view your profile.</p>
-        </div>
-      </div>
-    );
+    return <ErrorState type="not-signed-in" />;
   }
 
   if (!profile) {
-    return (
-      <div className="flex items-center justify-center h-screen px-4 pb-20">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-sm mx-auto">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Profile not found</h3>
-          <p className="text-gray-600 mb-4">There was an issue loading your profile.</p>
-          <Button onClick={fetchProfile} className="bg-blue-600 hover:bg-blue-700">
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
+    return <ErrorState type="profile-not-found" onRetry={fetchProfile} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pb-24 pt-4">
-      <div className="max-w-md mx-auto space-y-4">
-        {/* Profile Header */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col items-center text-center mb-4">
-              <Avatar className="h-20 w-20 mb-3">
-                <AvatarImage src={profile.avatar_url} />
-                <AvatarFallback className="text-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                  {profile.username.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <h2 className="text-xl font-bold">{profile.username}</h2>
-              <p className="text-gray-600 text-sm">{profile.email}</p>
-              <p className="text-xs text-gray-500 flex items-center mt-1">
-                <Calendar className="h-3 w-3 mr-1" />
-                Joined {new Date(profile.created_at).toLocaleDateString()}
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4 pb-24 pt-4">
+      <div className="max-w-md mx-auto space-y-6">
+        <ProfileHeader
+          profile={profile}
+          editing={editing}
+          editedProfile={editedProfile}
+          onEditToggle={() => setEditing(!editing)}
+          onUpdateProfile={updateProfile}
+          onProfileChange={handleProfileChange}
+        />
+
+        <ActivityStats userStats={userStats} />
+
+        <StudySubjects subjects={userStats.studySubjects} />
+
+        <RecentActivity activities={userStats.recentActivities} />
+
+        {/* Quick Tips Section */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-3xl shadow-xl p-6 text-white">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Star className="h-6 w-6 text-white" />
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setEditing(!editing)}
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              {editing ? 'Cancel' : 'Edit Profile'}
-            </Button>
-
-            {editing && (
-              <div className="space-y-3 mt-4 p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <Label htmlFor="username" className="text-sm">Username</Label>
-                  <Input
-                    id="username"
-                    value={editedProfile.username}
-                    onChange={(e) => setEditedProfile({...editedProfile, username: e.target.value})}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email" className="text-sm">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={editedProfile.email}
-                    onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex space-x-2 pt-2">
-                  <Button onClick={updateProfile} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                    Save
-                  </Button>
-                  <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                </div>
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold">Study Tips</h3>
+              <div className="space-y-2 text-purple-100">
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Create focused sessions with clear topics and goals
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Keep sessions small (2-6 people) for better engagement
+                </p>
+                <p className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-3"></span>
+                  Use the chat feature to share resources and notes
+                </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Activity Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <MessageSquare className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-              <p className="text-xl font-bold">{userStats.messagesSent}</p>
-              <p className="text-xs text-gray-600">Messages</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <FileText className="h-6 w-6 text-green-600 mx-auto mb-2" />
-              <p className="text-xl font-bold">{userStats.resourcesShared}</p>
-              <p className="text-xs text-gray-600">Resources</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Users className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-              <p className="text-xl font-bold">{userStats.sessionsJoined}</p>
-              <p className="text-xs text-gray-600">Sessions</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
-
-        {/* Study Subjects */}
-        {userStats.studySubjects.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center text-base">
-                <BookOpen className="h-4 w-4 mr-2" />
-                Study Subjects
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex flex-wrap gap-2">
-                {userStats.studySubjects.map((subject, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {subject}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent Activity */}
-        {userStats.recentActivities.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                {userStats.recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0">
-                      {activity.type === 'message' && <MessageSquare className="h-4 w-4 text-blue-600" />}
-                      {activity.type === 'resource' && <FileText className="h-4 w-4 text-green-600" />}
-                      {activity.type === 'session' && <Video className="h-4 w-4 text-purple-600" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{activity.content}</p>
-                      <p className="text-xs text-gray-500">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* No activity message */}
-        {userStats.recentActivities.length === 0 && (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Yet</h3>
-              <p className="text-gray-600 mb-4">Start participating in chats, sessions, or share resources to see your activity here.</p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Sign Out */}
         <Button
           variant="destructive"
-          className="w-full"
+          className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl py-3"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4 mr-2" />
