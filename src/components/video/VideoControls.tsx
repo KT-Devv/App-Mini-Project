@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings } from 'lucide-react';
+//Phone,
+import { Mic, MicOff, Video, VideoOff,  Settings } from 'lucide-react';
 
 interface VideoControlsProps {
   isMuted: boolean;
@@ -16,7 +17,7 @@ export const VideoControls: React.FC<VideoControlsProps> = ({
   isVideoOff,
   onToggleMute,
   onToggleVideo,
-  onLeaveSession
+// onLeaveSession
 }) => {
   return (
     <div className="flex justify-center space-x-4 mt-4">

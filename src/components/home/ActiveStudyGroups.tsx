@@ -8,7 +8,7 @@ interface StudySession {
   id: string;
   title: string;
   subject: string;
-  session_participants?: any[];
+  session_participants?: unknown[];
 }
 
 interface ActiveStudyGroupsProps {
