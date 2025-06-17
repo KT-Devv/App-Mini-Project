@@ -526,7 +526,7 @@ export interface Activity {
   time: string;
   details: string;
   status: string; 
-  avatar?: string;
+  avatar: string;
 }
 
 export interface StudySession {
