@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
@@ -15,6 +14,7 @@ import EmptyState from '../components/home/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Activity, StudySession } from "@/integrations/supabase/types";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -25,8 +25,8 @@ const Index = () => {
     messages: 0,
     resources: 0
   });
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
+  const [activeSessions, setActiveSessions] = useState<StudySession[]>([]);
   const { user } = useAuth();
   const { unreadCount, setUnreadCount, createNotification } = useNotifications();
 
@@ -109,7 +109,7 @@ const Index = () => {
           .order('created_at', { ascending: false })
           .limit(2);
 
-        // Get recent session participations
+        // Get recent session participation
         const { data: sessions } = await supabase
           .from('session_participants')
           .select(`
@@ -128,11 +128,11 @@ const Index = () => {
           .order('created_at', { ascending: false })
           .limit(2);
 
-        const activities = [];
+        const fetchedActivities = [];
 
         // Add messages
         messages?.forEach(msg => {
-          activities.push({
+          fetchedActivities.push({
             type: 'message',
             user: 'You',
             subject: msg.chat_rooms?.name || 'Chat',
@@ -144,7 +144,7 @@ const Index = () => {
 
         // Add sessions
         sessions?.forEach(session => {
-          activities.push({
+          fetchedActivities.push({
             type: 'session',
             user: 'You',
             subject: session.study_sessions?.title || 'Study Session',
@@ -156,7 +156,7 @@ const Index = () => {
 
         // Add resources
         resources?.forEach(resource => {
-          activities.push({
+          fetchedActivities.push({
             type: 'resource',
             user: 'You',
             subject: resource.title,
@@ -165,6 +165,16 @@ const Index = () => {
             avatar: username.charAt(0).toUpperCase()
           });
         });
+
+        const activities: (Activity & { status: string; avatar: string })[] = fetchedActivities.map((activity) => ({
+          type: activity.type,
+          user: activity.user,
+          subject: activity.subject,
+          time: activity.time,
+          details: activity.details,
+          status: activity.status,
+          avatar: activity.avatar,
+        }));
 
         // Sort by date and take most recent
         activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -181,7 +191,7 @@ const Index = () => {
   useEffect(() => {
     const fetchActiveSessions = async () => {
       try {
-        const { data: sessions } = await supabase
+        const { data: fetchedSessions } = await supabase
           .from('study_sessions')
           .select(`
             id,
@@ -192,6 +202,12 @@ const Index = () => {
           `)
           .eq('is_active', true)
           .limit(2);
+
+        const sessions: StudySession[] = fetchedSessions.map((session) => ({
+          id: session.id,
+          title: session.title,
+          subject: session.subject,
+        }));
 
         setActiveSessions(sessions || []);
       } catch (error) {
