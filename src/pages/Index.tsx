@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
@@ -15,7 +14,7 @@ import EmptyState from '../components/home/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Activity, StudySession } from "@/integrations/supabase/types";
+import { Activity, StudySession } from "@/types/activity";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
