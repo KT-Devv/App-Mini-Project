@@ -1,11 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { WebRTCService } from '@/services/webrtcService';
 import { SessionHeader } from './video/SessionHeader';
-import { VideoGrid } from './video/VideoGrid';
-import { VideoControls } from './video/VideoControls';
 import { ChatSidebar } from './video/ChatSidebar';
 
 interface VideoConferenceProps {
@@ -32,27 +30,16 @@ interface Participant {
   };
 }
 
-interface RemoteVideo {
-  userId: string;
-  stream: MediaStream;
-  username: string;
-}
-
-type ConnectionState = 'connecting' | 'connected' | 'failed' | 'disconnected';
-
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
-  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
-  const [remoteVideos, setRemoteVideos] = useState<RemoteVideo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const webrtcServiceRef = useRef<WebRTCService | null>(null);
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const jitsiApiRef = useRef<any>(null);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
   const isCleaningUpRef = useRef(false);
 
@@ -68,11 +55,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const initializeSession = async () => {
     try {
-      setConnectionState('connecting');
+      setIsLoading(true);
       setError(null);
       
       await Promise.all([
-        initializeWebRTC(),
+        initializeJitsi(),
         fetchParticipants(),
         fetchMessages(),
         setupRealtimeSubscriptions()
@@ -82,7 +69,8 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     } catch (error) {
       console.error('Failed to initialize session:', error);
       setError('Failed to initialize video session. Please try again.');
-      setConnectionState('failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,10 +81,14 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     console.log('Starting cleanup...');
     
     try {
-      await Promise.all([
-        cleanupWebRTC(),
-        cleanupChannels()
-      ]);
+      // Clean up Jitsi
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
+      }
+
+      // Clean up channels
+      await cleanupChannels();
     } catch (error) {
       console.error('Error during cleanup:', error);
     } finally {
@@ -118,70 +110,81 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     channelsRef.current = [];
   };
 
-  const initializeWebRTC = async () => {
-    if (!user || !localVideoRef.current) return;
+  const initializeJitsi = async () => {
+    if (!user || !jitsiContainerRef.current) return;
 
     try {
-      const webrtcService = new WebRTCService(sessionId, user.id);
-      webrtcServiceRef.current = webrtcService;
-
-      // Setup callbacks
-      webrtcService.onRemoteStream((userId, stream) => {
-        console.log('Adding remote stream for user:', userId);
-        const participant = participants.find(p => p.user_id === userId);
-        const username = participant?.profiles?.username || 'Unknown User';
+      // Load Jitsi Meet API script if not already loaded
+      if (!window.JitsiMeetExternalAPI) {
+        const script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        document.head.appendChild(script);
         
-        setRemoteVideos(prev => {
-          const existing = prev.find(v => v.userId === userId);
-          if (existing) {
-            return prev.map(v => v.userId === userId ? { ...v, stream } : v);
-          }
-          return [...prev, { userId, stream, username }];
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
         });
+      }
+
+      const domain = 'meet.jit.si';
+      const roomName = `StudySphere-${sessionId}`;
+      
+      const options = {
+        roomName: roomName,
+        width: '100%',
+        height: '100%',
+        parentNode: jitsiContainerRef.current,
+        userInfo: {
+          displayName: user.email?.split('@')[0] || 'Anonymous',
+          email: user.email
+        },
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          enableWelcomePage: false,
+          prejoinPageEnabled: false,
+          disableInviteFunctions: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          TOOLBAR_BUTTONS: [
+            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+            'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+            'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+            'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+          ],
+        },
+      };
+
+      jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
+
+      // Set up event listeners
+      jitsiApiRef.current.addEventListener('readyToClose', () => {
+        handleLeaveSession();
       });
 
-      webrtcService.onUserLeft((userId) => {
-        console.log('User left:', userId);
-        setRemoteVideos(prev => prev.filter(v => v.userId !== userId));
+      jitsiApiRef.current.addEventListener('participantJoined', (participant: any) => {
+        console.log('Participant joined:', participant);
+        toast.success(`${participant.displayName || 'Someone'} joined the session`);
       });
 
-      webrtcService.onConnectionState((state) => {
-        console.log('Connection state changed:', state);
-        setConnectionState(state as ConnectionState);
-        
-        if (state === 'failed') {
-          setError('Connection failed. Please check your internet connection.');
-          toast.error('Connection failed');
-        } else if (state === 'connected') {
-          setError(null);
-          toast.success('Connected to session');
-        }
+      jitsiApiRef.current.addEventListener('participantLeft', (participant: any) => {
+        console.log('Participant left:', participant);
+        toast.info(`${participant.displayName || 'Someone'} left the session`);
       });
 
-      await webrtcService.initialize(localVideoRef.current);
-      console.log('WebRTC initialized successfully');
+      console.log('Jitsi Meet initialized successfully');
     } catch (error) {
-      console.error('Error initializing WebRTC:', error);
-      setError(error instanceof Error ? error.message : 'Failed to access camera/microphone');
-      setConnectionState('failed');
+      console.error('Error initializing Jitsi Meet:', error);
+      setError('Failed to initialize video conference. Please try again.');
       throw error;
     }
   };
 
-  const cleanupWebRTC = async () => {
-    if (webrtcServiceRef.current) {
-      try {
-        webrtcServiceRef.current.cleanup();
-      } catch (error) {
-        console.error('Error cleaning up WebRTC:', error);
-      } finally {
-        webrtcServiceRef.current = null;
-      }
-    }
-  };
-
   const setupRealtimeSubscriptions = () => {
-    // Clean up any existing channels first
     cleanupChannels();
 
     try {
@@ -202,9 +205,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         )
         .subscribe((status) => {
           console.log('Participants channel status:', status);
-          if (status === 'CHANNEL_ERROR') {
-            console.error('Error subscribing to participants channel');
-          }
         });
 
       const messagesChannel = supabase
@@ -225,9 +225,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         )
         .subscribe((status) => {
           console.log('Messages channel status:', status);
-          if (status === 'CHANNEL_ERROR') {
-            console.error('Error subscribing to messages channel');
-          }
         });
 
       channelsRef.current = [participantsChannel, messagesChannel];
@@ -249,8 +246,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         console.error('Error fetching participants:', participantsError);
         return;
       }
-
-      console.log('Participants data:', participantsData);
 
       if (participantsData && participantsData.length > 0) {
         const userIds = participantsData.map(p => p.user_id);
@@ -350,20 +345,6 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const toggleMute = () => {
-    if (webrtcServiceRef.current) {
-      const muted = webrtcServiceRef.current.toggleMute();
-      setIsMuted(muted);
-    }
-  };
-
-  const toggleVideo = () => {
-    if (webrtcServiceRef.current) {
-      const videoOff = webrtcServiceRef.current.toggleVideo();
-      setIsVideoOff(videoOff);
-    }
-  };
-
   const handleLeaveSession = async () => {
     try {
       const { error } = await supabase
@@ -415,13 +396,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     );
   }
 
-  if (connectionState === 'connecting') {
+  if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold mb-2">Connecting to session...</h2>
-          <p className="text-gray-400">Setting up video and audio</p>
+          <p className="text-gray-400">Loading video conference</p>
         </div>
       </div>
     );
@@ -435,48 +416,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         onLeaveSession={handleLeaveSession}
       />
 
-      {connectionState === 'failed' && (
-        <div className="bg-red-900 border-l-4 border-red-500 text-red-100 p-4 mx-4 mt-2 rounded">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <span className="text-red-400">⚠️</span>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm">
-                Connection issues detected. Some features may not work properly.
-                <button 
-                  onClick={retryConnection}
-                  className="ml-2 underline hover:no-underline"
-                >
-                  Retry connection
-                </button>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 flex">
-        <div className="flex-1 p-4">
-          <VideoGrid 
-            localVideoRef={localVideoRef}
-            remoteVideos={remoteVideos}
-            participants={participants}
-            userId={user?.id}
-            isMuted={isMuted}
-            isVideoOff={isVideoOff}
-          />
-
-          <VideoControls 
-            isMuted={isMuted}
-            isVideoOff={isVideoOff}
-            onToggleMute={toggleMute}
-            onToggleVideo={toggleVideo}
-            onLeaveSession={handleLeaveSession}
-            webrtcService={webrtcServiceRef.current}
-            sessionId={sessionId}
-            userId={user?.id}
-          />
+        <div className="flex-1">
+          <div ref={jitsiContainerRef} className="w-full h-full" />
         </div>
 
         <ChatSidebar 
@@ -490,5 +432,12 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     </div>
   );
 };
+
+// Declare the Jitsi Meet External API type
+declare global {
+  interface Window {
+    JitsiMeetExternalAPI: any;
+  }
+}
 
 export default VideoConference;

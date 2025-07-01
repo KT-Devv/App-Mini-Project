@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
@@ -55,7 +56,7 @@ const StudyRooms = () => {
   useEffect(() => {
     fetchStudySessions();
     
-    // Set up real-time subscriptions with better error handling
+    // Set up real-time subscriptions
     const sessionsChannel = supabase
       .channel('study-sessions-changes')
       .on(
