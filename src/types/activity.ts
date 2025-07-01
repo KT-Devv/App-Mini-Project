@@ -5,6 +5,8 @@ export interface Activity {
   subject: string;
   time: string;
   details?: string;
+  status: string;
+  avatar: string;
 }
 
 export interface StudySession {
