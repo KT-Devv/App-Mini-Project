@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, Clock, Video, Star, Sparkles } from 'lucide-react';
+import { Plus, Users, Clock, Video, Star, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -43,6 +42,7 @@ const StudyRooms = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
   const [currentVideoSession, setCurrentVideoSession] = useState<StudySession | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
   const [newSession, setNewSession] = useState({
     title: '',
     subject: '',
@@ -55,7 +55,7 @@ const StudyRooms = () => {
   useEffect(() => {
     fetchStudySessions();
     
-    // Set up real-time subscriptions
+    // Set up real-time subscriptions with better error handling
     const sessionsChannel = supabase
       .channel('study-sessions-changes')
       .on(
@@ -82,9 +82,18 @@ const StudyRooms = () => {
           fetchStudySessions();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+        } else if (status === 'CHANNEL_ERROR') {
+          setConnectionStatus('error');
+          console.error('Error with real-time subscription');
+        }
+      });
 
     return () => {
+      console.log('Cleaning up real-time subscriptions');
       supabase.removeChannel(sessionsChannel);
     };
   }, []);
@@ -92,6 +101,8 @@ const StudyRooms = () => {
   const fetchStudySessions = async () => {
     try {
       console.log('Fetching study sessions...');
+      setConnectionStatus('connected');
+      
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('study_sessions')
         .select(`
@@ -110,15 +121,17 @@ const StudyRooms = () => {
             user_id,
             joined_at
           )
-        `);
+        `)
+        .order('created_at', { ascending: false });
 
       if (sessionsError) {
         console.error('Error fetching study sessions:', sessionsError);
-        toast.error('Failed to fetch study sessions.');
+        setConnectionStatus('error');
+        toast.error('Failed to fetch study sessions. Please refresh the page.');
         return;
       }
 
-      console.log('Sessions data:', sessionsData);
+      console.log('Sessions data fetched:', sessionsData?.length || 0, 'sessions');
 
       // Fetch profiles for the created_by field
       const { data: profilesData, error: profilesError } = await supabase
@@ -129,22 +142,21 @@ const StudyRooms = () => {
         console.error('Error fetching profiles:', profilesError);
       }
 
-      console.log('Profiles data:', profilesData);
-
-      // Map sessions with profiles and participants, adding missing fields
+      // Map sessions with profiles and participants
       const sessionsWithProfiles = (sessionsData || []).map((session) => ({
         ...session,
-        session_url: `${window.location.origin}/session/${session.id}`, // Generate session URL
-        status: session.is_active ? 'live' : 'scheduled', // Derive status from is_active
+        session_url: `${window.location.origin}/session/${session.id}`,
+        status: session.is_active ? 'live' : 'scheduled',
         profiles: profilesData?.find((profile) => profile.id === session.created_by) || { username: 'Unknown User' },
         session_participants: session.session_participants || [],
       }));
 
       setSessions(sessionsWithProfiles);
-      setLoading(false);
     } catch (error) {
       console.error('Unexpected error fetching study sessions:', error);
-      toast.error('An unexpected error occurred.');
+      setConnectionStatus('error');
+      toast.error('An unexpected error occurred while loading sessions.');
+    } finally {
       setLoading(false);
     }
   };
@@ -189,32 +201,33 @@ const StudyRooms = () => {
       if (error) {
         console.error('Error creating session:', error);
         toast.error(`Failed to create session: ${error.message}`);
-      } else {
-        console.log('Session created successfully:', data);
-        
-        // Automatically join the session as the creator
-        await joinSession(data.id);
-        
-        toast.success('Study session created successfully!');
-        setShowCreateModal(false);
-        setNewSession({
-          title: '',
-          subject: '',
-          description: '',
-          max_participants: 10,
-          scheduled_for: ''
-        });
-        
-        // Show share modal for the newly created session
-        setSelectedSession({ 
-          ...data, 
-          session_url: `${window.location.origin}/session/${data.id}`,
-          status: 'live',
-          session_participants: [], 
-          profiles: { username: user.email?.split('@')[0] || 'You' } 
-        });
-        setShowShareModal(true);
+        return;
       }
+
+      console.log('Session created successfully:', data);
+      
+      // Automatically join the session as the creator
+      await joinSession(data.id);
+      
+      toast.success('Study session created successfully!');
+      setShowCreateModal(false);
+      setNewSession({
+        title: '',
+        subject: '',
+        description: '',
+        max_participants: 10,
+        scheduled_for: ''
+      });
+      
+      // Show share modal for the newly created session
+      setSelectedSession({ 
+        ...data, 
+        session_url: `${window.location.origin}/session/${data.id}`,
+        status: 'live',
+        session_participants: [], 
+        profiles: { username: user.email?.split('@')[0] || 'You' } 
+      });
+      setShowShareModal(true);
     } catch (error) {
       console.error('Unexpected error creating session:', error);
       toast.error('An unexpected error occurred while creating the session.');
@@ -241,7 +254,14 @@ const StudyRooms = () => {
         .single();
 
       if (existingParticipant) {
-        toast.info('You are already in this session');
+        console.log('User already in session, proceeding to video');
+        toast.info('Joining session...');
+        
+        // Find the session and open video conference
+        const session = sessions.find(s => s.id === sessionId);
+        if (session) {
+          setCurrentVideoSession(session);
+        }
         return;
       }
 
@@ -255,8 +275,16 @@ const StudyRooms = () => {
       if (error) {
         console.error('Error joining session:', error);
         toast.error(`Failed to join session: ${error.message}`);
-      } else {
-        toast.success('Joined session successfully!');
+        return;
+      }
+
+      console.log('Successfully joined session');
+      toast.success('Joined session successfully!');
+      
+      // Open video conference
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        setCurrentVideoSession(session);
       }
     } catch (error) {
       console.error('Unexpected error joining session:', error);
@@ -277,9 +305,11 @@ const StudyRooms = () => {
       if (error) {
         console.error('Error leaving session:', error);
         toast.error('Failed to leave session');
-      } else {
-        toast.success('Left session successfully');
+        return;
       }
+
+      toast.success('Left session successfully');
+      console.log('Successfully left session:', sessionId);
     } catch (error) {
       console.error('Unexpected error leaving session:', error);
       toast.error('An unexpected error occurred');
@@ -292,13 +322,15 @@ const StudyRooms = () => {
   };
 
   const openVideoSession = (sessionUrl: string) => {
-      const session = sessions.find(s => s.session_url === sessionUrl);
-      if (session) {
-          setCurrentVideoSession(session);
-      }
+    const session = sessions.find(s => s.session_url === sessionUrl);
+    if (session) {
+      console.log('Opening video session:', session.title);
+      setCurrentVideoSession(session);
+    }
   };
 
   const handleLeaveVideoSession = () => {
+    console.log('Leaving video session');
     setCurrentVideoSession(null);
   };
 
@@ -336,6 +368,33 @@ const StudyRooms = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+        {/* Connection Status */}
+        {connectionStatus === 'error' && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+              <p className="text-red-700">
+                Connection issues detected. Sessions may not update in real-time.
+                <button 
+                  onClick={fetchStudySessions}
+                  className="ml-2 underline hover:no-underline"
+                >
+                  Refresh
+                </button>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {connectionStatus === 'connected' && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
+              <p className="text-green-700">Connected - Sessions will update automatically</p>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-4">

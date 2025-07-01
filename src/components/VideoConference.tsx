@@ -38,9 +38,7 @@ interface RemoteVideo {
   username: string;
 }
 
-interface Channel {
-  unsubscribe: () => Promise<"error" | "ok" | "timed out">;
-}
+type ConnectionState = 'connecting' | 'connected' | 'failed' | 'disconnected';
 
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
@@ -49,20 +47,18 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const [newMessage, setNewMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [remoteVideos, setRemoteVideos] = useState<RemoteVideo[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcServiceRef = useRef<WebRTCService | null>(null);
-  const channelsRef = useRef<Channel[]>([]);
+  const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
   const isCleaningUpRef = useRef(false);
 
   useEffect(() => {
     if (user) {
-      initializeWebRTC();
-      fetchParticipants();
-      fetchMessages();
-      setupRealtimeSubscriptions();
+      initializeSession();
     }
 
     return () => {
@@ -70,13 +66,37 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     };
   }, [sessionId, user]);
 
+  const initializeSession = async () => {
+    try {
+      setConnectionState('connecting');
+      setError(null);
+      
+      await Promise.all([
+        initializeWebRTC(),
+        fetchParticipants(),
+        fetchMessages(),
+        setupRealtimeSubscriptions()
+      ]);
+      
+      console.log('Session initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize session:', error);
+      setError('Failed to initialize video session. Please try again.');
+      setConnectionState('failed');
+    }
+  };
+
   const cleanup = async () => {
     if (isCleaningUpRef.current) return;
     isCleaningUpRef.current = true;
 
+    console.log('Starting cleanup...');
+    
     try {
-      await cleanupWebRTC();
-      await cleanupChannels();
+      await Promise.all([
+        cleanupWebRTC(),
+        cleanupChannels()
+      ]);
     } catch (error) {
       console.error('Error during cleanup:', error);
     } finally {
@@ -88,7 +108,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     const promises = channelsRef.current.map(async (channel) => {
       try {
         const result = await channel.unsubscribe();
-        console.log(`Unsubscribe result: ${result}`);
+        console.log(`Channel unsubscribe result: ${result}`);
       } catch (error) {
         console.error('Error unsubscribing from channel:', error);
       }
@@ -125,12 +145,26 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         setRemoteVideos(prev => prev.filter(v => v.userId !== userId));
       });
 
+      webrtcService.onConnectionState((state) => {
+        console.log('Connection state changed:', state);
+        setConnectionState(state as ConnectionState);
+        
+        if (state === 'failed') {
+          setError('Connection failed. Please check your internet connection.');
+          toast.error('Connection failed');
+        } else if (state === 'connected') {
+          setError(null);
+          toast.success('Connected to session');
+        }
+      });
+
       await webrtcService.initialize(localVideoRef.current);
-      setIsConnecting(false);
+      console.log('WebRTC initialized successfully');
     } catch (error) {
       console.error('Error initializing WebRTC:', error);
-      toast.error('Failed to access camera/microphone');
-      setIsConnecting(false);
+      setError(error instanceof Error ? error.message : 'Failed to access camera/microphone');
+      setConnectionState('failed');
+      throw error;
     }
   };
 
@@ -162,10 +196,12 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
             filter: `session_id=eq.${sessionId}`
           },
           () => {
+            console.log('Participants changed, refetching...');
             fetchParticipants();
           }
         )
         .subscribe((status) => {
+          console.log('Participants channel status:', status);
           if (status === 'CHANNEL_ERROR') {
             console.error('Error subscribing to participants channel');
           }
@@ -181,18 +217,19 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
             table: 'chat_messages'
           },
           (payload) => {
+            console.log('New message received:', payload);
             if (payload.new.room_id === sessionId) {
               fetchMessages();
             }
           }
         )
         .subscribe((status) => {
+          console.log('Messages channel status:', status);
           if (status === 'CHANNEL_ERROR') {
             console.error('Error subscribing to messages channel');
           }
         });
 
-      // Store channels for cleanup
       channelsRef.current = [participantsChannel, messagesChannel];
     } catch (error) {
       console.error('Error setting up realtime subscriptions:', error);
@@ -201,6 +238,8 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
   const fetchParticipants = async () => {
     try {
+      console.log('Fetching participants for session:', sessionId);
+      
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
         .select('session_id, user_id, joined_at')
@@ -210,6 +249,8 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         console.error('Error fetching participants:', participantsError);
         return;
       }
+
+      console.log('Participants data:', participantsData);
 
       if (participantsData && participantsData.length > 0) {
         const userIds = participantsData.map(p => p.user_id);
@@ -236,6 +277,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
           await endSession();
         }
       } else {
+        console.log('No participants found, ending session');
         setParticipants([]);
         await endSession();
       }
@@ -341,12 +383,45 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  if (isConnecting) {
+  const retryConnection = () => {
+    console.log('Retrying connection...');
+    setError(null);
+    initializeSession();
+  };
+
+  if (error) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Connecting to session...</p>
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center text-white max-w-md mx-auto p-6">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <div className="space-y-3">
+            <button
+              onClick={retryConnection}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onLeaveSession}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors ml-3"
+            >
+              Leave Session
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (connectionState === 'connecting') {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2">Connecting to session...</h2>
+          <p className="text-gray-400">Setting up video and audio</p>
         </div>
       </div>
     );
@@ -360,8 +435,28 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         onLeaveSession={handleLeaveSession}
       />
 
+      {connectionState === 'failed' && (
+        <div className="bg-red-900 border-l-4 border-red-500 text-red-100 p-4 mx-4 mt-2 rounded">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="text-red-400">⚠️</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">
+                Connection issues detected. Some features may not work properly.
+                <button 
+                  onClick={retryConnection}
+                  className="ml-2 underline hover:no-underline"
+                >
+                  Retry connection
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex">
-        {/* Main Video Area */}
         <div className="flex-1 p-4">
           <VideoGrid 
             localVideoRef={localVideoRef}
@@ -378,6 +473,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
             onToggleMute={toggleMute}
             onToggleVideo={toggleVideo}
             onLeaveSession={handleLeaveSession}
+            webrtcService={webrtcServiceRef.current}
+            sessionId={sessionId}
+            userId={user?.id}
           />
         </div>
 
