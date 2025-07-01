@@ -145,30 +145,36 @@ const SessionDiagnostics: React.FC<SessionDiagnosticsProps> = ({
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (status: string | boolean) => {
+    const statusStr = typeof status === 'boolean' ? status.toString() : status;
+    
+    switch (statusStr) {
       case 'granted':
       case 'connected':
-      case true:
+      case 'true':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'denied':
       case 'error':
       case 'failed':
-      case false:
+      case 'false':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       default:
         return <Activity className="h-5 w-5 text-yellow-500" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (status: string | boolean) => {
+    const statusStr = typeof status === 'boolean' ? status.toString() : status;
+    
+    switch (statusStr) {
       case 'granted':
       case 'connected':
+      case 'true':
         return 'bg-green-100 text-green-800';
       case 'denied':
       case 'error':
       case 'failed':
+      case 'false':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-yellow-100 text-yellow-800';
@@ -211,7 +217,7 @@ const SessionDiagnostics: React.FC<SessionDiagnosticsProps> = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Local Stream</span>
-                  {getStatusIcon(diagnostics.webrtc.localStream.toString())}
+                  {getStatusIcon(diagnostics.webrtc.localStream)}
                 </div>
                 {diagnostics.webrtc.errors.length > 0 && (
                   <div className="mt-2">
@@ -274,7 +280,7 @@ const SessionDiagnostics: React.FC<SessionDiagnosticsProps> = ({
                 <div className="flex items-center justify-between">
                   <span>Online Status</span>
                   <div className="flex items-center space-x-2">
-                    {getStatusIcon(diagnostics.network.online.toString())}
+                    {getStatusIcon(diagnostics.network.online)}
                     <Badge className={getStatusColor(diagnostics.network.online ? 'connected' : 'disconnected')}>
                       {diagnostics.network.online ? 'Online' : 'Offline'}
                     </Badge>
