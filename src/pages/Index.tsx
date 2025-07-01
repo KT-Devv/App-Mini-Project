@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import MobileHeader from '../components/MobileHeader';
 import MobileNavigation from '../components/MobileNavigation';
@@ -275,14 +276,14 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen w-full bg-gray-50">
       <MobileHeader 
         notifications={unreadCount} 
         onNotificationCountChange={setUnreadCount}
         onNavigate={setActiveTab}
       />
       
-      <main className="px-3 pt-3">
+      <main className="w-full px-3 pt-3">
         {renderContent()}
       </main>
       
