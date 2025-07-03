@@ -43,6 +43,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSessionCreator, setIsSessionCreator] = useState(false);
   
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const jitsiApiRef = useRef<any>(null);
@@ -82,6 +83,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         throw new Error('User not authenticated');
       }
       
+      // Check if user is session creator
+      await checkSessionCreator();
+      
       await Promise.all([
         initializeJitsi(),
         fetchParticipants(),
@@ -97,6 +101,25 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       initializationPromiseRef.current = null;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkSessionCreator = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('study_sessions')
+        .select('created_by')
+        .eq('id', sessionId)
+        .single();
+
+      if (error) {
+        console.error('Error checking session creator:', error);
+        return;
+      }
+
+      setIsSessionCreator(data?.created_by === user?.id);
+    } catch (error) {
+      console.error('Error checking session creator:', error);
     }
   };
 
@@ -414,6 +437,44 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
+  const handleCloseSession = async () => {
+    try {
+      console.log('Closing session...');
+      
+      // Set session as inactive
+      const { error: updateError } = await supabase
+        .from('study_sessions')
+        .update({ 
+          is_active: false,
+          end_time: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (updateError) {
+        console.error('Error closing session:', updateError);
+        toast.error('Failed to close session');
+        return;
+      }
+
+      // Remove all participants
+      const { error: deleteError } = await supabase
+        .from('session_participants')
+        .delete()
+        .eq('session_id', sessionId);
+
+      if (deleteError) {
+        console.error('Error removing participants:', deleteError);
+      }
+
+      toast.success('Session closed successfully');
+      await cleanup();
+      onLeaveSession();
+    } catch (error) {
+      console.error('Unexpected error closing session:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
   const retryConnection = async () => {
     console.log('Retrying connection...');
     setError(null);
@@ -433,6 +494,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center text-white max-w-md mx-auto p-6">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+              alt="StudySphere Logo" 
+              className="w-16 h-16 object-contain"
+            />
+          </div>
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
           <p className="text-gray-300 mb-6">{error}</p>
@@ -459,6 +527,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center text-white">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+              alt="StudySphere Logo" 
+              className="w-16 h-16 object-contain"
+            />
+          </div>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold mb-2">Connecting to session...</h2>
           <p className="text-gray-400">Loading video conference</p>
@@ -473,6 +548,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         sessionTitle={sessionTitle}
         participantCount={participants.length}
         onLeaveSession={handleLeaveSession}
+        onCloseSession={isSessionCreator ? handleCloseSession : undefined}
       />
 
       <div className="flex-1 flex">

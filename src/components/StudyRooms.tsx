@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
@@ -357,6 +356,13 @@ const StudyRooms = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="text-center space-y-4">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+              alt="StudySphere Logo" 
+              className="w-12 h-12 object-contain"
+            />
+          </div>
           <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mx-auto flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-white animate-pulse" />
           </div>
@@ -399,8 +405,12 @@ const StudyRooms = () => {
         {/* Enhanced Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Video className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                alt="StudySphere Logo" 
+                className="w-12 h-12 object-contain"
+              />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Study Rooms
