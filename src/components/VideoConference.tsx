@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,10 +49,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
   const isCleaningUpRef = useRef(false);
   const isInitializedRef = useRef(false);
+  const initializationPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    if (user && !isInitializedRef.current) {
-      initializeSession();
+    if (user && sessionId && !isInitializedRef.current && !initializationPromiseRef.current) {
+      initializationPromiseRef.current = initializeSession();
     }
 
     return () => {
@@ -69,7 +69,18 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       setError(null);
       isInitializedRef.current = true;
       
-      console.log('Initializing session...');
+      console.log('Initializing session for user:', user?.id, 'session:', sessionId);
+      
+      // Wait a bit to ensure container is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (!jitsiContainerRef.current) {
+        throw new Error('Video container not ready');
+      }
+
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
       
       await Promise.all([
         initializeJitsi(),
@@ -83,6 +94,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       console.error('Failed to initialize session:', error);
       setError('Failed to initialize video session. Please try again.');
       isInitializedRef.current = false;
+      initializationPromiseRef.current = null;
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +110,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       // Clean up Jitsi
       if (jitsiApiRef.current) {
         console.log('Disposing Jitsi API...');
-        jitsiApiRef.current.dispose();
+        try {
+          jitsiApiRef.current.dispose();
+        } catch (e) {
+          console.warn('Error disposing Jitsi API:', e);
+        }
         jitsiApiRef.current = null;
       }
 
@@ -106,6 +122,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       await cleanupChannels();
       
       isInitializedRef.current = false;
+      initializationPromiseRef.current = null;
     } catch (error) {
       console.error('Error during cleanup:', error);
     } finally {
@@ -153,15 +170,21 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   };
 
   const initializeJitsi = async () => {
-    if (!user || !jitsiContainerRef.current) {
-      throw new Error('User not authenticated or container not ready');
+    console.log('Initializing Jitsi with container:', !!jitsiContainerRef.current, 'user:', !!user);
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    if (!jitsiContainerRef.current) {
+      throw new Error('Container not ready');
     }
 
     try {
       console.log('Loading Jitsi Meet API...');
       await loadJitsiScript();
       
-      console.log('Jitsi Meet API loaded, initializing...');
+      console.log('Jitsi Meet API loaded, creating instance...');
 
       const domain = 'meet.jit.si';
       const roomName = `StudySphere-${sessionId}`;
@@ -197,7 +220,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         },
       };
 
-      console.log('Creating Jitsi Meet instance with options:', options);
+      console.log('Creating Jitsi Meet instance...');
       jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
 
       // Set up event listeners
@@ -232,12 +255,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const setupRealtimeSubscriptions = () => {
-    cleanupChannels();
+  const setupRealtimeSubscriptions = async () => {
+    // Always clean up existing channels first
+    await cleanupChannels();
 
     try {
       const participantsChannel = supabase
-        .channel(`session-participants-${sessionId}`)
+        .channel(`session-participants-${sessionId}-${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -256,7 +280,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         });
 
       const messagesChannel = supabase
-        .channel(`session-messages-${sessionId}`)
+        .channel(`session-messages-${sessionId}-${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -390,11 +414,19 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const retryConnection = () => {
+  const retryConnection = async () => {
     console.log('Retrying connection...');
     setError(null);
     isInitializedRef.current = false;
-    initializeSession();
+    initializationPromiseRef.current = null;
+    
+    // Clean up first
+    await cleanup();
+    
+    // Wait a moment before retrying
+    setTimeout(() => {
+      initializationPromiseRef.current = initializeSession();
+    }, 1000);
   };
 
   if (error) {
