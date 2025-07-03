@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import SearchModal from './SearchModal';
 import NotificationsDropdown from './NotificationsDropdown';
+import { ThemeToggle } from './ThemeToggle';
 
 interface MobileHeaderProps {
   notifications: number;
@@ -16,7 +17,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
 
   return (
     <>
-      <header className="bg-white border-b px-4 py-3 sticky top-0 z-50 safe-area-top">
+      <header className="bg-card/80 backdrop-blur-sm border-b border-border px-4 py-3 sticky top-0 z-50 safe-area-top transition-colors">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 flex items-center justify-center">
@@ -26,7 +27,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
                 className="w-8 h-8 object-contain"
               />
             </div>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
               StudySphere
             </h1>
           </div>
@@ -44,6 +45,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
               unreadCount={notifications}
               onCountChange={onNotificationCountChange}
             />
+            <ThemeToggle />
           </div>
         </div>
       </header>

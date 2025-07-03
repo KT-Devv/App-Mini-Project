@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Brain, Users, BookOpen, MessageCircle, Video, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ThemeToggle } from './ThemeToggle';
 
 const Onboarding = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -15,7 +16,7 @@ const Onboarding = () => {
       subtitle: "Your AI-Powered Study Companion",
       description: "Join thousands of students in collaborative learning with intelligent assistance and real-time study sessions.",
       icon: Brain,
-      gradient: "from-blue-500 to-purple-600",
+      gradient: "from-blue-500 to-blue-600",
       features: [
         { icon: MessageCircle, text: "Smart Q&A Community" },
         { icon: Video, text: "Live Study Sessions" },
@@ -27,7 +28,7 @@ const Onboarding = () => {
       subtitle: "Collaborative Learning Made Easy",
       description: "Connect with study partners, join video sessions, and solve problems together in real-time.",
       icon: Users,
-      gradient: "from-green-500 to-blue-500",
+      gradient: "from-blue-600 to-blue-700",
       features: [
         { icon: Users, text: "Study Groups" },
         { icon: Video, text: "Video Collaboration" },
@@ -39,7 +40,7 @@ const Onboarding = () => {
       subtitle: "Get Instant Help Anytime",
       description: "Our AI assistant provides personalized study help, explanations, and resources tailored to your learning style.",
       icon: BookOpen,
-      gradient: "from-purple-500 to-pink-500",
+      gradient: "from-blue-700 to-blue-800",
       features: [
         { icon: Brain, text: "Smart AI Tutor" },
         { icon: BookOpen, text: "Personalized Content" },
@@ -70,34 +71,48 @@ const Onboarding = () => {
   const IconComponent = currentSlideData.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary flex items-center justify-center p-4 transition-colors duration-300">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      
       <div className="w-full max-w-md">
         {/* Main Card */}
-        <Card className="border-0 shadow-2xl bg-white">
+        <Card className="border-0 shadow-2xl bg-card transition-colors duration-300">
           <CardContent className="p-0">
-            {/* Header with gradient background */}
-            <div className={`bg-gradient-to-br ${currentSlideData.gradient} p-8 text-white text-center rounded-t-lg`}>
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <IconComponent className="h-10 w-10 text-white" />
+            {/* Header with gradient background and StudySphere logo */}
+            <div className={`bg-gradient-to-br ${currentSlideData.gradient} p-8 text-white text-center rounded-t-lg relative overflow-hidden`}>
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] bg-repeat"></div>
               </div>
-              <h1 className="text-2xl font-bold mb-2">{currentSlideData.title}</h1>
-              <p className="text-blue-100 font-medium">{currentSlideData.subtitle}</p>
+              
+              <div className="relative">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 logo-animate">
+                  <img 
+                    src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                    alt="StudySphere Logo" 
+                    className="w-12 h-12 object-contain"
+                  />
+                </div>
+                <h1 className="text-2xl font-bold mb-2 animate-fade-in">{currentSlideData.title}</h1>
+                <p className="text-blue-100 font-medium animate-fade-in">{currentSlideData.subtitle}</p>
+              </div>
             </div>
 
             {/* Content */}
             <div className="p-8">
-              <p className="text-gray-600 text-center mb-8 leading-relaxed">
+              <p className="text-muted-foreground text-center mb-8 leading-relaxed animate-fade-in">
                 {currentSlideData.description}
               </p>
 
               {/* Features */}
               <div className="space-y-4 mb-8">
                 {currentSlideData.features.map((feature, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${currentSlideData.gradient} rounded-lg flex items-center justify-center`}>
+                  <div key={index} className="flex items-center space-x-3 p-3 bg-secondary/50 rounded-xl feature-animate transition-colors duration-300">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${currentSlideData.gradient} rounded-lg flex items-center justify-center transform transition-transform hover:scale-110`}>
                       <feature.icon className="h-5 w-5 text-white" />
                     </div>
-                    <span className="font-medium text-gray-700">{feature.text}</span>
+                    <span className="font-medium text-foreground">{feature.text}</span>
                   </div>
                 ))}
               </div>
@@ -109,8 +124,8 @@ const Onboarding = () => {
                     key={index}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${
                       index === currentSlide 
-                        ? `bg-gradient-to-r ${currentSlideData.gradient}` 
-                        : 'bg-gray-300'
+                        ? `bg-gradient-to-r ${currentSlideData.gradient} scale-125` 
+                        : 'bg-muted scale-100'
                     }`}
                   />
                 ))}
@@ -121,7 +136,7 @@ const Onboarding = () => {
                 <Button
                   variant="ghost"
                   onClick={skip}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Skip
                 </Button>
@@ -132,7 +147,7 @@ const Onboarding = () => {
                       variant="outline"
                       size="sm"
                       onClick={prevSlide}
-                      className="flex items-center"
+                      className="flex items-center hover:scale-105 transition-transform"
                     >
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Back
@@ -141,7 +156,7 @@ const Onboarding = () => {
                   
                   <Button
                     onClick={nextSlide}
-                    className={`bg-gradient-to-r ${currentSlideData.gradient} hover:opacity-90 flex items-center shadow-lg`}
+                    className={`bg-gradient-to-r ${currentSlideData.gradient} hover:opacity-90 flex items-center shadow-lg hover:scale-105 transition-all duration-200`}
                   >
                     {currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -153,7 +168,7 @@ const Onboarding = () => {
         </Card>
 
         {/* Bottom text */}
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-muted-foreground text-sm mt-6 animate-fade-in">
           Join over 10,000+ students already using StudySphere
         </p>
       </div>
