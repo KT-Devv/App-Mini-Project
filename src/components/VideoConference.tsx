@@ -30,6 +30,13 @@ interface Participant {
   };
 }
 
+// Declare the Jitsi Meet External API type
+declare global {
+  interface Window {
+    JitsiMeetExternalAPI: any;
+  }
+}
+
 const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTitle, onLeaveSession }) => {
   const { user } = useAuth();
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -42,9 +49,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   const jitsiApiRef = useRef<any>(null);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
   const isCleaningUpRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !isInitializedRef.current) {
       initializeSession();
     }
 
@@ -54,9 +62,14 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
   }, [sessionId, user]);
 
   const initializeSession = async () => {
+    if (isInitializedRef.current) return;
+    
     try {
       setIsLoading(true);
       setError(null);
+      isInitializedRef.current = true;
+      
+      console.log('Initializing session...');
       
       await Promise.all([
         initializeJitsi(),
@@ -69,6 +82,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     } catch (error) {
       console.error('Failed to initialize session:', error);
       setError('Failed to initialize video session. Please try again.');
+      isInitializedRef.current = false;
     } finally {
       setIsLoading(false);
     }
@@ -83,12 +97,15 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     try {
       // Clean up Jitsi
       if (jitsiApiRef.current) {
+        console.log('Disposing Jitsi API...');
         jitsiApiRef.current.dispose();
         jitsiApiRef.current = null;
       }
 
       // Clean up channels
       await cleanupChannels();
+      
+      isInitializedRef.current = false;
     } catch (error) {
       console.error('Error during cleanup:', error);
     } finally {
@@ -110,22 +127,41 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     channelsRef.current = [];
   };
 
+  const loadJitsiScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // Check if script is already loaded
+      if (window.JitsiMeetExternalAPI) {
+        resolve();
+        return;
+      }
+
+      // Check if script is already being loaded
+      const existingScript = document.querySelector('script[src*="external_api.js"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve());
+        existingScript.addEventListener('error', reject);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://meet.jit.si/external_api.js';
+      script.async = true;
+      script.addEventListener('load', () => resolve());
+      script.addEventListener('error', reject);
+      document.head.appendChild(script);
+    });
+  };
+
   const initializeJitsi = async () => {
-    if (!user || !jitsiContainerRef.current) return;
+    if (!user || !jitsiContainerRef.current) {
+      throw new Error('User not authenticated or container not ready');
+    }
 
     try {
-      // Load Jitsi Meet API script if not already loaded
-      if (!window.JitsiMeetExternalAPI) {
-        const script = document.createElement('script');
-        script.src = 'https://meet.jit.si/external_api.js';
-        script.async = true;
-        document.head.appendChild(script);
-        
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-        });
-      }
+      console.log('Loading Jitsi Meet API...');
+      await loadJitsiScript();
+      
+      console.log('Jitsi Meet API loaded, initializing...');
 
       const domain = 'meet.jit.si';
       const roomName = `StudySphere-${sessionId}`;
@@ -137,32 +173,36 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         parentNode: jitsiContainerRef.current,
         userInfo: {
           displayName: user.email?.split('@')[0] || 'Anonymous',
-          email: user.email
+          email: user.email || ''
         },
         configOverwrite: {
-          startWithAudioMuted: false,
+          startWithAudioMuted: true,
           startWithVideoMuted: false,
           enableWelcomePage: false,
           prejoinPageEnabled: false,
           disableInviteFunctions: true,
+          toolbarButtons: [
+            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+            'livestreaming', 'settings', 'raisehand', 'videoquality', 
+            'filmstrip', 'stats', 'shortcuts', 'tileview', 'help'
+          ],
         },
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
-          TOOLBAR_BUTTONS: [
-            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-            'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-            'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
-            'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
-          ],
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+          DISPLAY_WELCOME_PAGE_CONTENT: false,
+          DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
         },
       };
 
+      console.log('Creating Jitsi Meet instance with options:', options);
       jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
 
       // Set up event listeners
       jitsiApiRef.current.addEventListener('readyToClose', () => {
+        console.log('Jitsi readyToClose event');
         handleLeaveSession();
       });
 
@@ -176,11 +216,19 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         toast.info(`${participant.displayName || 'Someone'} left the session`);
       });
 
+      jitsiApiRef.current.addEventListener('videoConferenceJoined', (participant: any) => {
+        console.log('Video conference joined:', participant);
+        toast.success('Successfully joined the video session!');
+      });
+
+      jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
+        console.log('Video conference left');
+      });
+
       console.log('Jitsi Meet initialized successfully');
     } catch (error) {
       console.error('Error initializing Jitsi Meet:', error);
-      setError('Failed to initialize video conference. Please try again.');
-      throw error;
+      throw new Error('Failed to initialize video conference. Please try again.');
     }
   };
 
@@ -267,14 +315,9 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
         }));
 
         setParticipants(participantsWithProfiles);
-
-        if (participantsWithProfiles.length === 0) {
-          await endSession();
-        }
       } else {
-        console.log('No participants found, ending session');
+        console.log('No participants found');
         setParticipants([]);
-        await endSession();
       }
     } catch (error) {
       console.error('Unexpected error fetching participants:', error);
@@ -325,28 +368,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     }
   };
 
-  const endSession = async () => {
-    try {
-      const { error } = await supabase
-        .from('study_sessions')
-        .update({ 
-          is_active: false 
-        })
-        .eq('id', sessionId);
-
-      if (error) {
-        console.error('Error ending session:', error);
-      }
-
-      toast.info('Session has ended');
-      onLeaveSession();
-    } catch (error) {
-      console.error('Unexpected error ending session:', error);
-    }
-  };
-
   const handleLeaveSession = async () => {
     try {
+      console.log('Leaving session...');
+      
       const { error } = await supabase
         .from('session_participants')
         .delete()
@@ -361,12 +386,14 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
       onLeaveSession();
     } catch (error) {
       console.error('Unexpected error leaving session:', error);
+      onLeaveSession(); // Still leave even if there's an error
     }
   };
 
   const retryConnection = () => {
     console.log('Retrying connection...');
     setError(null);
+    isInitializedRef.current = false;
     initializeSession();
   };
 
@@ -418,7 +445,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
 
       <div className="flex-1 flex">
         <div className="flex-1">
-          <div ref={jitsiContainerRef} className="w-full h-full" />
+          <div 
+            ref={jitsiContainerRef} 
+            className="w-full h-full"
+            style={{ minHeight: '400px' }}
+          />
         </div>
 
         <ChatSidebar 
@@ -432,12 +463,5 @@ const VideoConference: React.FC<VideoConferenceProps> = ({ sessionId, sessionTit
     </div>
   );
 };
-
-// Declare the Jitsi Meet External API type
-declare global {
-  interface Window {
-    JitsiMeetExternalAPI: any;
-  }
-}
 
 export default VideoConference;
