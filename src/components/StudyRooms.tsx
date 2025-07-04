@@ -375,33 +375,6 @@ const StudyRooms = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
-        {/* Connection Status */}
-        {connectionStatus === 'error' && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-              <p className="text-red-700">
-                Connection issues detected. Sessions may not update in real-time.
-                <button 
-                  onClick={fetchStudySessions}
-                  className="ml-2 underline hover:no-underline"
-                >
-                  Refresh
-                </button>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {connectionStatus === 'connected' && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
-            <div className="flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-              <p className="text-green-700">Connected - Sessions will update automatically</p>
-            </div>
-          </div>
-        )}
-
         {/* Enhanced Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-4">
