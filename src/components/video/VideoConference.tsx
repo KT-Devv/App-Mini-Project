@@ -1,8 +1,18 @@
 
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { SessionHeader } from './SessionHeader';
+import { ChatSidebar } from './ChatSidebar';
+import { VideoLoadingScreen } from './VideoLoadingScreen';
+import { VideoErrorScreen } from './VideoErrorScreen';
+
+interface VideoConferenceProps {
+  sessionId: string;
+  sessionTitle: string;
+  onLeaveSession: () => void;
+}
 
 interface Message {
   id: string;
@@ -28,7 +38,11 @@ declare global {
   }
 }
 
-export const useVideoConference = (sessionId: string, onLeaveSession: () => void) => {
+const VideoConference: React.FC<VideoConferenceProps> = ({ 
+  sessionId, 
+  sessionTitle, 
+  onLeaveSession 
+}) => {
   const { user } = useAuth();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,11 +53,9 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
   
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const jitsiApiRef = useRef<any>(null);
-  const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
-  const isCleaningUpRef = useRef(false);
-  const isInitializedRef = useRef(false);
-  const initializationPromiseRef = useRef<Promise<void> | null>(null);
+  const isInitialized = useRef(false);
 
+  // Load Jitsi Meet API
   const loadJitsiScript = (): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (window.JitsiMeetExternalAPI) {
@@ -51,38 +63,22 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
         return;
       }
 
-      const existingScript = document.querySelector('script[src*="external_api.js"]');
-      if (existingScript) {
-        existingScript.addEventListener('load', () => resolve());
-        existingScript.addEventListener('error', reject);
-        return;
-      }
-
       const script = document.createElement('script');
       script.src = 'https://meet.jit.si/external_api.js';
       script.async = true;
-      script.addEventListener('load', () => resolve());
-      script.addEventListener('error', reject);
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Jitsi Meet API'));
       document.head.appendChild(script);
     });
   };
 
+  // Initialize Jitsi Meet
   const initializeJitsi = async () => {
-    console.log('Initializing Jitsi with container:', !!jitsiContainerRef.current, 'user:', !!user);
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    if (!jitsiContainerRef.current) {
-      throw new Error('Container not ready');
-    }
+    if (!user || !jitsiContainerRef.current || isInitialized.current) return;
 
     try {
-      console.log('Loading Jitsi Meet API...');
+      console.log('Initializing Jitsi Meet...');
       await loadJitsiScript();
-      
-      console.log('Jitsi Meet API loaded, creating instance...');
 
       const domain = 'meet.jit.si';
       const roomName = `StudySphere-${sessionId}`;
@@ -102,99 +98,41 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
           enableWelcomePage: false,
           prejoinPageEnabled: false,
           disableInviteFunctions: true,
-          toolbarButtons: [
-            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-            'livestreaming', 'settings', 'raisehand', 'videoquality', 
-            'filmstrip', 'stats', 'shortcuts', 'tileview', 'help'
-          ],
         },
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
-          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
-          DISPLAY_WELCOME_PAGE_CONTENT: false,
-          DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
         },
       };
 
-      console.log('Creating Jitsi Meet instance...');
       jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
+      isInitialized.current = true;
 
       // Set up event listeners
       jitsiApiRef.current.addEventListener('readyToClose', () => {
-        console.log('Jitsi readyToClose event');
         handleLeaveSession();
       });
 
       jitsiApiRef.current.addEventListener('participantJoined', (participant: any) => {
-        console.log('Participant joined:', participant);
         toast.success(`${participant.displayName || 'Someone'} joined the session`);
       });
 
       jitsiApiRef.current.addEventListener('participantLeft', (participant: any) => {
-        console.log('Participant left:', participant);
         toast.info(`${participant.displayName || 'Someone'} left the session`);
       });
 
-      jitsiApiRef.current.addEventListener('videoConferenceJoined', (participant: any) => {
-        console.log('Video conference joined:', participant);
+      jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
         toast.success('Successfully joined the video session!');
-      });
-
-      jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
-        console.log('Video conference left');
       });
 
       console.log('Jitsi Meet initialized successfully');
     } catch (error) {
       console.error('Error initializing Jitsi Meet:', error);
-      throw new Error('Failed to initialize video conference. Please try again.');
+      setError('Failed to initialize video conference. Please try again.');
     }
   };
 
-  const cleanupChannels = async () => {
-    const promises = channelsRef.current.map(async (channel) => {
-      try {
-        const result = await channel.unsubscribe();
-        console.log(`Channel unsubscribe result: ${result}`);
-      } catch (error) {
-        console.error('Error unsubscribing from channel:', error);
-      }
-    });
-
-    await Promise.allSettled(promises);
-    channelsRef.current = [];
-  };
-
-  const cleanup = async () => {
-    if (isCleaningUpRef.current) return;
-    isCleaningUpRef.current = true;
-
-    console.log('Starting cleanup...');
-    
-    try {
-      if (jitsiApiRef.current) {
-        console.log('Disposing Jitsi API...');
-        try {
-          jitsiApiRef.current.dispose();
-        } catch (e) {
-          console.warn('Error disposing Jitsi API:', e);
-        }
-        jitsiApiRef.current = null;
-      }
-
-      await cleanupChannels();
-      
-      isInitializedRef.current = false;
-      initializationPromiseRef.current = null;
-    } catch (error) {
-      console.error('Error during cleanup:', error);
-    } finally {
-      isCleaningUpRef.current = false;
-    }
-  };
-
+  // Check if user is session creator
   const checkSessionCreator = async () => {
     try {
       const { data, error } = await supabase
@@ -214,59 +152,9 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
     }
   };
 
-  const setupRealtimeSubscriptions = async () => {
-    await cleanupChannels();
-
-    try {
-      const participantsChannel = supabase
-        .channel(`session-participants-${sessionId}-${Date.now()}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'session_participants',
-            filter: `session_id=eq.${sessionId}`
-          },
-          () => {
-            console.log('Participants changed, refetching...');
-            fetchParticipants();
-          }
-        )
-        .subscribe((status) => {
-          console.log('Participants channel status:', status);
-        });
-
-      const messagesChannel = supabase
-        .channel(`session-messages-${sessionId}-${Date.now()}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages'
-          },
-          (payload) => {
-            console.log('New message received:', payload);
-            if (payload.new.room_id === sessionId) {
-              fetchMessages();
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Messages channel status:', status);
-        });
-
-      channelsRef.current = [participantsChannel, messagesChannel];
-    } catch (error) {
-      console.error('Error setting up realtime subscriptions:', error);
-    }
-  };
-
+  // Fetch participants
   const fetchParticipants = async () => {
     try {
-      console.log('Fetching participants for session:', sessionId);
-      
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
         .select('session_id, user_id, joined_at')
@@ -297,15 +185,13 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
         }));
 
         setParticipants(participantsWithProfiles);
-      } else {
-        console.log('No participants found');
-        setParticipants([]);
       }
     } catch (error) {
-      console.error('Unexpected error fetching participants:', error);
+      console.error('Error fetching participants:', error);
     }
   };
 
+  // Fetch messages
   const fetchMessages = async () => {
     try {
       const { data, error } = await supabase
@@ -321,10 +207,11 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
 
       setMessages(data || []);
     } catch (error) {
-      console.error('Unexpected error fetching messages:', error);
+      console.error('Error fetching messages:', error);
     }
   };
 
+  // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
 
@@ -344,16 +231,23 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
       }
 
       setNewMessage('');
+      fetchMessages(); // Refresh messages
     } catch (error) {
-      console.error('Unexpected error sending message:', error);
+      console.error('Error sending message:', error);
       toast.error('An unexpected error occurred');
     }
   };
 
+  // Handle leave session
   const handleLeaveSession = async () => {
     try {
       console.log('Leaving session...');
       
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
+      }
+
       const { error } = await supabase
         .from('session_participants')
         .delete()
@@ -364,14 +258,14 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
         console.error('Error leaving session:', error);
       }
 
-      await cleanup();
       onLeaveSession();
     } catch (error) {
-      console.error('Unexpected error leaving session:', error);
+      console.error('Error leaving session:', error);
       onLeaveSession();
     }
   };
 
+  // Handle close session
   const handleCloseSession = async () => {
     try {
       console.log('Closing session...');
@@ -400,89 +294,156 @@ export const useVideoConference = (sessionId: string, onLeaveSession: () => void
       }
 
       toast.success('Session closed successfully');
-      await cleanup();
       onLeaveSession();
     } catch (error) {
-      console.error('Unexpected error closing session:', error);
+      console.error('Error closing session:', error);
       toast.error('An unexpected error occurred');
     }
   };
 
-  const initializeSession = async () => {
-    if (isInitializedRef.current) return;
+  // Retry connection
+  const retryConnection = async () => {
+    setError(null);
+    setIsLoading(true);
+    isInitialized.current = false;
     
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose();
+      jitsiApiRef.current = null;
+    }
+    
+    setTimeout(() => {
+      initializeSession();
+    }, 1000);
+  };
+
+  // Initialize session
+  const initializeSession = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      isInitializedRef.current = true;
       
       console.log('Initializing session for user:', user?.id, 'session:', sessionId);
       
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!jitsiContainerRef.current) {
-        throw new Error('Video container not ready');
-      }
-
       if (!user) {
         throw new Error('User not authenticated');
       }
       
-      await checkSessionCreator();
-      
       await Promise.all([
-        initializeJitsi(),
+        checkSessionCreator(),
         fetchParticipants(),
         fetchMessages(),
-        setupRealtimeSubscriptions()
+        initializeJitsi()
       ]);
       
       console.log('Session initialized successfully');
     } catch (error) {
       console.error('Failed to initialize session:', error);
       setError('Failed to initialize video session. Please try again.');
-      isInitializedRef.current = false;
-      initializationPromiseRef.current = null;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const retryConnection = async () => {
-    console.log('Retrying connection...');
-    setError(null);
-    isInitializedRef.current = false;
-    initializationPromiseRef.current = null;
-    
-    await cleanup();
-    
-    setTimeout(() => {
-      initializationPromiseRef.current = initializeSession();
-    }, 1000);
-  };
-
+  // Setup real-time subscriptions
   useEffect(() => {
-    if (user && sessionId && !isInitializedRef.current && !initializationPromiseRef.current) {
-      initializationPromiseRef.current = initializeSession();
-    }
+    if (!user || !sessionId) return;
+
+    const participantsChannel = supabase
+      .channel(`session-participants-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'session_participants',
+          filter: `session_id=eq.${sessionId}`
+        },
+        () => {
+          fetchParticipants();
+        }
+      )
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel(`session-messages-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        (payload) => {
+          if (payload.new.room_id === sessionId) {
+            fetchMessages();
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      cleanup();
+      supabase.removeChannel(participantsChannel);
+      supabase.removeChannel(messagesChannel);
     };
   }, [sessionId, user]);
 
-  return {
-    participants,
-    messages,
-    newMessage,
-    setNewMessage,
-    isLoading,
-    error,
-    isSessionCreator,
-    jitsiContainerRef,
-    sendMessage,
-    handleLeaveSession,
-    handleCloseSession,
-    retryConnection
-  };
+  // Initialize on mount
+  useEffect(() => {
+    if (user && sessionId) {
+      initializeSession();
+    }
+
+    return () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
+      }
+    };
+  }, [sessionId, user]);
+
+  if (error) {
+    return (
+      <VideoErrorScreen
+        error={error}
+        onRetry={retryConnection}
+        onLeave={onLeaveSession}
+      />
+    );
+  }
+
+  if (isLoading) {
+    return <VideoLoadingScreen />;
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-900">
+      <SessionHeader 
+        sessionTitle={sessionTitle}
+        participantCount={participants.length}
+        onLeaveSession={handleLeaveSession}
+        onCloseSession={isSessionCreator ? handleCloseSession : undefined}
+      />
+
+      <div className="flex-1 flex">
+        <div className="flex-1">
+          <div 
+            ref={jitsiContainerRef} 
+            className="w-full h-full"
+            style={{ minHeight: '400px' }}
+          />
+        </div>
+
+        <ChatSidebar 
+          messages={messages}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          onSendMessage={sendMessage}
+          userId={user?.id}
+        />
+      </div>
+    </div>
+  );
 };
+
+export default VideoConference;

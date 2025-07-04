@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, Clock, Video, Star, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Users, Clock, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import SessionCard from './SessionCard';
 import CreateSessionModal from './CreateSessionModal';
 import ShareSessionModal from './ShareSessionModal';
-import VideoConference from './VideoConference';
+import VideoConference from './video/VideoConference';
 
 type Participant = {
   session_id: string;
@@ -42,7 +42,6 @@ const StudyRooms = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
   const [currentVideoSession, setCurrentVideoSession] = useState<StudySession | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
   const [newSession, setNewSession] = useState({
     title: '',
     subject: '',
@@ -65,8 +64,7 @@ const StudyRooms = () => {
           schema: 'public',
           table: 'study_sessions'
         },
-        (payload) => {
-          console.log('Session change:', payload);
+        () => {
           fetchStudySessions();
         }
       )
@@ -77,23 +75,13 @@ const StudyRooms = () => {
           schema: 'public',
           table: 'session_participants'
         },
-        (payload) => {
-          console.log('Participant change:', payload);
+        () => {
           fetchStudySessions();
         }
       )
-      .subscribe((status) => {
-        console.log('Real-time subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          setConnectionStatus('connected');
-        } else if (status === 'CHANNEL_ERROR') {
-          setConnectionStatus('error');
-          console.error('Error with real-time subscription');
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscriptions');
       supabase.removeChannel(sessionsChannel);
     };
   }, []);
@@ -101,7 +89,6 @@ const StudyRooms = () => {
   const fetchStudySessions = async () => {
     try {
       console.log('Fetching study sessions...');
-      setConnectionStatus('connected');
       
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('study_sessions')
@@ -126,7 +113,6 @@ const StudyRooms = () => {
 
       if (sessionsError) {
         console.error('Error fetching study sessions:', sessionsError);
-        setConnectionStatus('error');
         toast.error('Failed to fetch study sessions. Please refresh the page.');
         return;
       }
@@ -154,7 +140,6 @@ const StudyRooms = () => {
       setSessions(sessionsWithProfiles);
     } catch (error) {
       console.error('Unexpected error fetching study sessions:', error);
-      setConnectionStatus('error');
       toast.error('An unexpected error occurred while loading sessions.');
     } finally {
       setLoading(false);
@@ -180,8 +165,6 @@ const StudyRooms = () => {
 
     setCreating(true);
     
-    console.log('Creating session with data:', { ...newSession, created_by: user.id });
-
     try {
       const { data, error } = await supabase
         .from('study_sessions')
@@ -358,13 +341,13 @@ const StudyRooms = () => {
         <div className="text-center space-y-4">
           <div className="flex justify-center mb-4">
             <img 
-              src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+              src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
               alt="StudySphere Logo" 
               className="w-12 h-12 object-contain"
             />
           </div>
           <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mx-auto flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-white animate-pulse" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
           </div>
           <p className="text-slate-600 font-medium">Loading study sessions...</p>
         </div>
@@ -375,12 +358,12 @@ const StudyRooms = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
-        {/* Enhanced Header */}
+        {/* Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 flex items-center justify-center">
               <img 
-                src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
                 className="w-12 h-12 object-contain"
               />
