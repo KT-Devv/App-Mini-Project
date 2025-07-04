@@ -27,6 +27,7 @@ const Index = () => {
   });
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [activeSessions, setActiveSessions] = useState<StudySession[]>([]);
+  const [hasCreatedWelcomeNotification, setHasCreatedWelcomeNotification] = useState(false);
   const { user } = useAuth();
   const { unreadCount, setUnreadCount, createNotification } = useNotifications();
 
@@ -218,23 +219,34 @@ const Index = () => {
     fetchActiveSessions();
   }, []);
 
-  // Create welcome notification for new users
+  // Create welcome notification for new users (only once)
   useEffect(() => {
     const createWelcomeNotification = async () => {
-      if (user?.id && unreadCount === 0) {
-        await createNotification(
-          user.id,
-          'Welcome to StudySphere! 🎉',
-          'Start by joining a study session or exploring resources.',
-          'general'
-        );
+      if (user?.id && !hasCreatedWelcomeNotification) {
+        // Check if user already has any notifications
+        const { data: existingNotifications } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        // Only create welcome notification if user has no notifications at all
+        if (!existingNotifications || existingNotifications.length === 0) {
+          await createNotification(
+            user.id,
+            'Welcome to StudySphere! 🎉',
+            'Start by joining a study session or exploring resources.',
+            'general'
+          );
+        }
+        setHasCreatedWelcomeNotification(true);
       }
     };
 
     if (user?.id) {
       createWelcomeNotification();
     }
-  }, [user?.id]);
+  }, [user?.id, createNotification, hasCreatedWelcomeNotification]);
 
   const renderContent = () => {
     switch (activeTab) {

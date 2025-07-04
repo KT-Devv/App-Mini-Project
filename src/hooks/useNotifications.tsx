@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const { user } = useAuth();
 
   const fetchUnreadCount = async () => {
@@ -17,6 +18,10 @@ export const useNotifications = () => {
 
       if (!error && data !== null) {
         setUnreadCount(data);
+      }
+      
+      if (!initialLoadComplete) {
+        setInitialLoadComplete(true);
       }
     } catch (error) {
       console.error('Error fetching unread count:', error);
@@ -74,6 +79,7 @@ export const useNotifications = () => {
     unreadCount,
     setUnreadCount,
     createNotification,
-    refreshCount: fetchUnreadCount
+    refreshCount: fetchUnreadCount,
+    initialLoadComplete
   };
 };
