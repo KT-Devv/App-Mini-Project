@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import SearchModal from './SearchModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import { ThemeToggle } from './ThemeToggle';
+import ResetApp from './ResetApp';
 
 interface MobileHeaderProps {
   notifications: number;
@@ -27,7 +28,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
                 className="w-8 h-8 object-contain"
               />
             </div>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
               StudySphere
             </h1>
           </div>
@@ -46,6 +47,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
               onCountChange={onNotificationCountChange}
             />
             <ThemeToggle />
+            <ResetApp />
           </div>
         </div>
       </header>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -50,79 +50,80 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background flex items-center justify-center p-4 pt-safe-area-inset-top pb-safe-area-inset-bottom keyboard-adjust transition-colors duration-300 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48ZyBmaWxsPSIjMzMzIiBmaWxsLW9wYWNpdHk9IjAuMSI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4 transition-colors duration-300">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48ZyBmaWxsPSIjMzMzIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjIiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
       
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-6 right-6 z-50">
         <ThemeToggle />
       </div>
       
-      <div className="w-full max-w-md mx-auto relative z-10">
-        <Card className="w-full shadow-2xl border-0 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-3xl">
-          <CardHeader className="text-center pb-4 relative">
-            {/* Animated background for header */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-blue-600/10 rounded-t-lg"></div>
-            
-            <div className="relative">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-xl flex items-center justify-center logo-animate shadow-lg">
-                  <img 
-                    src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
-                    alt="StudySphere Logo" 
-                    className="w-8 h-8 object-contain"
-                  />
-                </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent animate-fade-in">
-                  StudySphere
-                </h1>
+      <div className="w-full max-w-lg mx-auto relative z-10">
+        <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-8 pt-8">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 logo-animate relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent"></div>
+                <img 
+                  src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                  alt="StudySphere Logo" 
+                  className="w-12 h-12 object-contain relative z-10"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent"></div>
               </div>
-              <CardDescription className="text-sm text-muted-foreground animate-fade-in">
-                Join the collaborative learning community
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-2">
+                StudySphere
+              </h1>
+              <CardDescription className="text-muted-foreground flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-500" />
+                Your AI-powered learning companion
               </CardDescription>
             </div>
           </CardHeader>
           
-          <CardContent className="pt-0">
+          <CardContent className="px-8 pb-8">
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50">
-                <TabsTrigger value="signin" className="transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/50 p-1">
+                <TabsTrigger 
+                  value="signin" 
+                  className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all duration-200"
+                >
                   Sign In
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <TabsTrigger 
+                  value="signup" 
+                  className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all duration-200"
+                >
                   Sign Up
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="signin" className="animate-fade-in">
-                <form onSubmit={handleSignIn} className="space-y-4">
+              <TabsContent value="signin" className="space-y-6">
+                <form onSubmit={handleSignIn} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-sm font-medium">Email</Label>
+                    <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">Email</Label>
                     <div className="relative group">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors duration-200" />
                       <Input
                         id="signin-email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="h-12 pl-12 text-base border-2 border-muted focus:border-blue-500 transition-all duration-200"
                         placeholder="Enter your email"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-sm font-medium">Password</Label>
+                    <Label htmlFor="signin-password" className="text-sm font-medium text-foreground">Password</Label>
                     <div className="relative group">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors duration-200" />
                       <Input
                         id="signin-password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="h-12 pl-12 text-base border-2 border-muted focus:border-blue-500 transition-all duration-200"
                         placeholder="Enter your password"
                         required
                       />
@@ -130,12 +131,12 @@ const Auth = () => {
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full h-11 mt-6 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-200 hover:scale-[1.02] shadow-lg" 
+                    className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg" 
                     disabled={loading}
                   >
                     {loading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                         <span>Signing in...</span>
                       </div>
                     ) : (
@@ -145,48 +146,48 @@ const Auth = () => {
                 </form>
               </TabsContent>
               
-              <TabsContent value="signup" className="animate-fade-in">
-                <form onSubmit={handleSignUp} className="space-y-4">
+              <TabsContent value="signup" className="space-y-6">
+                <form onSubmit={handleSignUp} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-username" className="text-sm font-medium">Username</Label>
+                    <Label htmlFor="signup-username" className="text-sm font-medium text-foreground">Username</Label>
                     <div className="relative group">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors duration-200" />
                       <Input
                         id="signup-username"
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="w-full h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="h-12 pl-12 text-base border-2 border-muted focus:border-blue-500 transition-all duration-200"
                         placeholder="Choose a username"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-sm font-medium">Email</Label>
+                    <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">Email</Label>
                     <div className="relative group">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors duration-200" />
                       <Input
                         id="signup-email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="h-12 pl-12 text-base border-2 border-muted focus:border-blue-500 transition-all duration-200"
                         placeholder="Enter your email"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-sm font-medium">Password</Label>
+                    <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">Password</Label>
                     <div className="relative group">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors duration-200" />
                       <Input
                         id="signup-password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="h-12 pl-12 text-base border-2 border-muted focus:border-blue-500 transition-all duration-200"
                         placeholder="Create a password"
                         required
                         minLength={6}
@@ -195,16 +196,16 @@ const Auth = () => {
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full h-11 mt-6 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-200 hover:scale-[1.02] shadow-lg" 
+                    className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg" 
                     disabled={loading}
                   >
                     {loading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                         <span>Creating account...</span>
                       </div>
                     ) : (
-                      'Sign Up'
+                      'Create Account'
                     )}
                   </Button>
                 </form>
@@ -213,7 +214,7 @@ const Auth = () => {
           </CardContent>
         </Card>
         
-        <p className="text-center text-muted-foreground text-sm mt-6 animate-fade-in">
+        <p className="text-center text-muted-foreground text-sm mt-8">
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>

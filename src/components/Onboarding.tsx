@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Users, BookOpen, MessageCircle, Video, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Users, BookOpen, MessageCircle, Video, FileText, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -15,7 +15,6 @@ const Onboarding = () => {
       title: "Welcome to StudySphere",
       subtitle: "Your AI-Powered Study Companion",
       description: "Join thousands of students in collaborative learning with intelligent assistance and real-time study sessions.",
-      icon: Brain,
       gradient: "from-blue-500 to-blue-600",
       features: [
         { icon: MessageCircle, text: "Smart Q&A Community" },
@@ -27,7 +26,6 @@ const Onboarding = () => {
       title: "Study Together",
       subtitle: "Collaborative Learning Made Easy",
       description: "Connect with study partners, join video sessions, and solve problems together in real-time.",
-      icon: Users,
       gradient: "from-blue-600 to-blue-700",
       features: [
         { icon: Users, text: "Study Groups" },
@@ -39,10 +37,9 @@ const Onboarding = () => {
       title: "AI-Powered Learning",
       subtitle: "Get Instant Help Anytime",
       description: "Our AI assistant provides personalized study help, explanations, and resources tailored to your learning style.",
-      icon: BookOpen,
       gradient: "from-blue-700 to-blue-800",
       features: [
-        { icon: Brain, text: "Smart AI Tutor" },
+        { icon: Sparkles, text: "Smart AI Tutor" },
         { icon: BookOpen, text: "Personalized Content" },
         { icon: FileText, text: "Study Resources" }
       ]
@@ -68,17 +65,18 @@ const Onboarding = () => {
   };
 
   const currentSlideData = slides[currentSlide];
-  const IconComponent = currentSlideData.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary flex items-center justify-center p-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4 transition-colors duration-300">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48ZyBmaWxsPSIjMzMzIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjIiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
+
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
       
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md relative z-10">
         {/* Main Card */}
-        <Card className="border-0 shadow-2xl bg-card transition-colors duration-300">
+        <Card className="border-0 shadow-2xl bg-card/95 backdrop-blur-sm transition-colors duration-300">
           <CardContent className="p-0">
             {/* Header with gradient background and StudySphere logo */}
             <div className={`bg-gradient-to-br ${currentSlideData.gradient} p-8 text-white text-center rounded-t-lg relative overflow-hidden`}>
@@ -87,7 +85,7 @@ const Onboarding = () => {
               </div>
               
               <div className="relative">
-                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 logo-animate">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6 logo-animate shadow-lg">
                   <img 
                     src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                     alt="StudySphere Logo" 
@@ -108,8 +106,8 @@ const Onboarding = () => {
               {/* Features */}
               <div className="space-y-4 mb-8">
                 {currentSlideData.features.map((feature, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-secondary/50 rounded-xl feature-animate transition-colors duration-300">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${currentSlideData.gradient} rounded-lg flex items-center justify-center transform transition-transform hover:scale-110`}>
+                  <div key={index} className="flex items-center space-x-3 p-3 bg-muted/50 rounded-xl feature-animate transition-colors duration-300">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${currentSlideData.gradient} rounded-lg flex items-center justify-center transform transition-transform hover:scale-110 shadow-md`}>
                       <feature.icon className="h-5 w-5 text-white" />
                     </div>
                     <span className="font-medium text-foreground">{feature.text}</span>
@@ -124,7 +122,7 @@ const Onboarding = () => {
                     key={index}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${
                       index === currentSlide 
-                        ? `bg-gradient-to-r ${currentSlideData.gradient} scale-125` 
+                        ? `bg-gradient-to-r ${currentSlideData.gradient} scale-125 shadow-sm` 
                         : 'bg-muted scale-100'
                     }`}
                   />
@@ -147,7 +145,7 @@ const Onboarding = () => {
                       variant="outline"
                       size="sm"
                       onClick={prevSlide}
-                      className="flex items-center hover:scale-105 transition-transform"
+                      className="flex items-center hover:scale-105 transition-transform border-border hover:border-blue-300 dark:hover:border-blue-700"
                     >
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Back
@@ -156,7 +154,7 @@ const Onboarding = () => {
                   
                   <Button
                     onClick={nextSlide}
-                    className={`bg-gradient-to-r ${currentSlideData.gradient} hover:opacity-90 flex items-center shadow-lg hover:scale-105 transition-all duration-200`}
+                    className={`bg-gradient-to-r ${currentSlideData.gradient} hover:opacity-90 flex items-center shadow-lg hover:scale-105 transition-all duration-200 text-white border-0`}
                   >
                     {currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}
                     <ChevronRight className="h-4 w-4 ml-1" />
