@@ -89,7 +89,7 @@ const Onboarding = () => {
               <div className="relative">
                 <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 logo-animate">
                   <img 
-                    src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                    src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                     alt="StudySphere Logo" 
                     className="w-12 h-12 object-contain"
                   />

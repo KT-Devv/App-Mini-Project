@@ -70,7 +70,7 @@ const Auth = () => {
               <div className="flex items-center justify-center space-x-2 mb-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-xl flex items-center justify-center logo-animate shadow-lg">
                   <img 
-                    src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                    src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                     alt="StudySphere Logo" 
                     className="w-8 h-8 object-contain"
                   />

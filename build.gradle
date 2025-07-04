@@ -24,17 +24,6 @@ allprojects {
     }
 }
 
-android {
-    compileSdkVersion 33
-    defaultConfig {
-        applicationId "com.example.app"
-        minSdkVersion 21
-        targetSdkVersion 33
-        versionCode 1
-        versionName "1.0"
-    }
-    namespace "com.example.app"
-}
 
 task clean(type: Delete) {
     delete rootProject.buildDir
