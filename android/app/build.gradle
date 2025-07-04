@@ -4,7 +4,7 @@ android {
     namespace "studysphere"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "StudySphere"
+        applicationId "com.google.studysphere"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
