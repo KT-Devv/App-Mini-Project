@@ -20,7 +20,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
     <div className="bg-gray-800 p-4 flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <img 
-          src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+          src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
           alt="StudySphere Logo" 
           className="w-8 h-8 object-contain"
         />

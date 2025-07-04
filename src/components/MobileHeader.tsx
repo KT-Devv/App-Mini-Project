@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import SearchModal from './SearchModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import { ThemeToggle } from './ThemeToggle';
-import ResetApp from './ResetApp';
 
 interface MobileHeaderProps {
   notifications: number;
@@ -23,7 +22,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
-                src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
                 className="w-8 h-8 object-contain"
               />
@@ -47,7 +46,6 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
               onCountChange={onNotificationCountChange}
             />
             <ThemeToggle />
-            <ResetApp />
           </div>
         </div>
       </header>

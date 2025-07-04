@@ -84,7 +84,7 @@ const AIAssistant = () => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
               <img 
-                src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
                 className="w-6 h-6 object-contain"
               />
@@ -151,7 +151,7 @@ const AIAssistant = () => {
                     <div className="flex items-center space-x-3 p-5 pb-3 border-b border-border">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                         <img 
-                          src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                          src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                           alt="StudySphere Logo" 
                           className="w-6 h-6 object-contain"
                         />
@@ -177,7 +177,7 @@ const AIAssistant = () => {
                   <div className="flex items-center space-x-3 p-5 pb-3 border-b border-border">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                       <img 
-                        src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                        src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                         alt="StudySphere Logo" 
                         className="w-6 h-6 object-contain"
                       />

@@ -17,7 +17,7 @@ export const VideoErrorScreen: React.FC<VideoErrorScreenProps> = ({
       <div className="text-center text-white max-w-md mx-auto p-6">
         <div className="flex justify-center mb-4">
           <img 
-            src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+            src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
             alt="StudySphere Logo" 
             className="w-16 h-16 object-contain"
           />
