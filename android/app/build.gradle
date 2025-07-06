@@ -2,7 +2,7 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "studysphere"
+    namespace "com.studysphere.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.studysphere.app"
