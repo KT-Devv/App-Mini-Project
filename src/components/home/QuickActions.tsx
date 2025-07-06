@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, Video, Brain, FileText } from 'lucide-react';
+import { MessageCircle, Video, FileText } from 'lucide-react';
 
 interface QuickActionsProps {
   onNavigate: (tab: string) => void;
@@ -25,7 +25,7 @@ const QuickActions = ({ onNavigate }: QuickActionsProps) => {
     { 
       title: 'AI Assistant', 
       description: 'Smart study help', 
-      icon: Brain, 
+      icon: MessageCircle, 
       color: 'bg-gradient-to-br from-purple-500 to-purple-600', 
       action: () => onNavigate('ai-assistant') 
     },

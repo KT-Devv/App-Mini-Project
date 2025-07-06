@@ -87,9 +87,9 @@ const Onboarding = () => {
               <div className="relative">
                 <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6 logo-animate shadow-lg">
                   <img 
-                    src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                    src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                     alt="StudySphere Logo" 
-                    className="w-12 h-12 object-contain"
+                    className="w-12 h-12 object-contain rounded-lg"
                   />
                 </div>
                 <h1 className="text-2xl font-bold mb-2 animate-fade-in">{currentSlideData.title}</h1>

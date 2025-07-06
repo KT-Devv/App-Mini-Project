@@ -24,7 +24,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
               <img 
                 src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
-                className="w-8 h-8 object-contain"
+                className="w-8 h-8 object-contain rounded-lg"
               />
             </div>
             <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">

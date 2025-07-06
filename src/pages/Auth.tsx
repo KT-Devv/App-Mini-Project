@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -64,9 +63,9 @@ const Auth = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 logo-animate relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent"></div>
                 <img 
-                  src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                  src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                   alt="StudySphere Logo" 
-                  className="w-12 h-12 object-contain relative z-10"
+                  className="w-12 h-12 object-contain relative z-10 rounded-lg"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent"></div>
               </div>
