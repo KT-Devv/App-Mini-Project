@@ -2,7 +2,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.example.app',
+  appId: 'com.studysphere.app',
   appName: 'StudySphere',
   webDir: 'dist',
   server: {},

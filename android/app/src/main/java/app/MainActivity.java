@@ -1,4 +1,5 @@
-package app;
+
+package com.studysphere.app;
 
 import com.getcapacitor.BridgeActivity;
 
