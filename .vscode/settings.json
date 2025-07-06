@@ -8,5 +8,6 @@
         "supabase",
         "uploaders",
         "webrtc"
-    ]
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
