@@ -165,11 +165,7 @@ const Onboarding = () => {
           </CardContent>
         </Card>
 
-        {/* Bottom text */}
-        <p className="text-center text-muted-foreground text-sm mt-6 animate-fade-in">
-          Join over 10,000+ students already using StudySphere
-        </p>
-      </div>
+         </div>
     </div>
   );
 };
