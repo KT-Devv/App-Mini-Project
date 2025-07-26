@@ -5,28 +5,32 @@ const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
 const HF_TOKEN = import.meta.env.VITE_HF_TOKEN;
 
 export async function queryDeepSeek(userMessage: string): Promise<string> {
-    try {
+  try {
     const response = await axios.post(
-    HF_API_URL,
-    {
+      HF_API_URL,
+      {
         model: 'deepseek-ai/DeepSeek-R1',
         messages: [
-        {
+          {
             role: 'user',
             content: userMessage,
-        },
+          },
         ],
         stream: false,
-    },
-    {
+      },
+      {
         headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        'Content-Type': 'application/json',
+          Authorization: `Bearer ${HF_TOKEN}`,
+          'Content-Type': 'application/json',
         },
-    }
+      }
     );
 
-    return response.data.choices?.[0]?.message?.content || '[No response]';
+    let content = response.data.choices?.[0]?.message?.content || '[No response]';
+
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+    return content;
   } catch (error: unknown) {
     if (typeof error === 'object' && error !== null) {
       const err = error as { response?: { data?: unknown }; message?: string };
