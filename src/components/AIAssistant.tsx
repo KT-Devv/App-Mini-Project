@@ -93,7 +93,6 @@ const AIAssistant = () => {
                 </div>
               </div>
             ))}
-            
             {/* Typing Indicator */}
             {isTyping && (
               <div className="flex justify-start">
@@ -106,31 +105,30 @@ const AIAssistant = () => {
                 </div>
               </div>
             )}
-            
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
 
       {/* Message Input */}
-      <div className="border-t bg-card p-4">
+      <div className="border-t bg-card p-4 sticky bottom-0">
         <div className="max-w-2xl mx-auto">
-          <div className="flex space-x-2">
+          <form className="flex space-x-2" onSubmit={e => { e.preventDefault(); handleSendMessage(); }}>
             <Input
               placeholder="Ask me anything..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               className="flex-1"
+              autoFocus
             />
             <Button 
-              onClick={handleSendMessage} 
+              type="submit"
               disabled={!message.trim() || isTyping}
               size="icon"
             >
               <Send className="h-4 w-4" />
             </Button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
