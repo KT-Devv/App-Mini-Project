@@ -155,7 +155,7 @@ const Onboarding = () => {
                   <Button
                     onClick={nextSlide}
                     className={`bg-gradient-to-r ${currentSlideData.gradient} hover:opacity-90 flex items-center shadow-lg hover:scale-105 transition-all duration-200 text-white border-0`}
-                  >S
+                  >
                     {currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
