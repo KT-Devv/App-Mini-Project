@@ -22,7 +22,7 @@ const MobileHeader = ({ notifications, onNotificationCountChange, onNavigate }: 
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
-                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
                 className="w-8 h-8 object-contain rounded-lg"
               />

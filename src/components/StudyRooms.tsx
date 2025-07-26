@@ -341,7 +341,7 @@ const StudyRooms = () => {
         <div className="text-center space-y-4">
           <div className="flex justify-center mb-4">
             <img 
-              src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+              src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
               alt="StudySphere Logo" 
               className="w-12 h-12 object-contain"
             />
@@ -363,7 +363,7 @@ const StudyRooms = () => {
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 flex items-center justify-center">
               <img 
-                src="/lovable-uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
+                src="/uploads/e6eb7e5b-37be-4300-9bbb-ed1fcef6aa7e.png" 
                 alt="StudySphere Logo" 
                 className="w-12 h-12 object-contain"
               />
