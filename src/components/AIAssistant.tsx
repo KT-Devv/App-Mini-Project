@@ -1,5 +1,6 @@
 
 import { useState, useRef } from 'react';
+import { queryDeepSeek } from '../lib/huggingfaceAPI';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,7 +20,7 @@ const AIAssistant = () => {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (message.trim()) {
       const newMessage = {
         id: chatHistory.length + 1,
@@ -27,28 +28,28 @@ const AIAssistant = () => {
         message: message,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      
       setChatHistory([...chatHistory, newMessage]);
       setMessage('');
       setIsTyping(true);
-      
-      setTimeout(() => {
-        const responses = [
-          'I can help you with that! Let me explain this concept step by step.',
-          'Great question! Here\'s what you need to know about this topic.',
-          'That\'s an interesting problem. Let me walk you through the solution.',
-          'I\'d be happy to help you understand this better.',
-        ];
-        
+
+      try {
+        const aiContent = await queryDeepSeek(message);
         const aiResponse = {
           id: chatHistory.length + 2,
           type: 'ai',
-          message: responses[Math.floor(Math.random() * responses.length)],
+          message: aiContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setChatHistory(prev => [...prev, aiResponse]);
-        setIsTyping(false);
-      }, 1500);
+      } catch {
+        setChatHistory(prev => [...prev, {
+          id: chatHistory.length + 2,
+          type: 'ai',
+          message: 'Sorry, the AI is currently unavailable.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+      setIsTyping(false);
     }
   };
 
