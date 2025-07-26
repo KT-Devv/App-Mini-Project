@@ -1,61 +1,66 @@
-
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { queryDeepSeek } from '../lib/huggingfaceAPI';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Brain } from 'lucide-react';
 
 const AIAssistant = () => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [chatHistory, setChatHistory] = useState([
-    { 
-      id: 1, 
-      type: 'ai', 
-      message: 'Hi! I\'m your AI study assistant. Ask me anything about your studies.', 
+    {
+      id: 1,
+      type: 'ai',
+      message: "Hi! I'm your AI study assistant. Ask me anything about your studies.",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     },
   ]);
-  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = async () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: chatHistory.length + 1,
-        type: 'user',
-        message: message,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setChatHistory([...chatHistory, newMessage]);
-      setMessage('');
-      setIsTyping(true);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, isTyping]);
 
-      try {
-        const aiContent = await queryDeepSeek(message);
-        const aiResponse = {
-          id: chatHistory.length + 2,
+  const handleSendMessage = async () => {
+    if (!message.trim() || isTyping) return;
+    const newMessage = {
+      id: chatHistory.length + 1,
+      type: 'user',
+      message,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatHistory(prev => [...prev, newMessage]);
+    setMessage('');
+    setIsTyping(true);
+    try {
+      const aiContent = await queryDeepSeek(message);
+      setChatHistory(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
           type: 'ai',
           message: aiContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setChatHistory(prev => [...prev, aiResponse]);
-      } catch {
-        setChatHistory(prev => [...prev, {
-          id: chatHistory.length + 2,
+        }
+      ]);
+    } catch {
+      setChatHistory(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
           type: 'ai',
           message: 'Sorry, the AI is currently unavailable.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
-      }
-      setIsTyping(false);
+        }
+      ]);
     }
+    setIsTyping(false);
   };
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Simple Header */}
+      {/* Header */}
       <div className="border-b bg-card p-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -67,7 +72,6 @@ const AIAssistant = () => {
           </div>
         </div>
       </div>
-
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1 p-4">
@@ -109,7 +113,6 @@ const AIAssistant = () => {
           </div>
         </ScrollArea>
       </div>
-
       {/* Message Input */}
       <div className="border-t bg-card p-4 sticky bottom-0">
         <div className="max-w-2xl mx-auto">
@@ -117,11 +120,12 @@ const AIAssistant = () => {
             <Input
               placeholder="Ask me anything..."
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={e => setMessage(e.target.value)}
               className="flex-1"
               autoFocus
+              disabled={isTyping}
             />
-            <Button 
+            <Button
               type="submit"
               disabled={!message.trim() || isTyping}
               size="icon"
