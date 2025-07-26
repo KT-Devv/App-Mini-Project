@@ -5,22 +5,30 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Brain } from 'lucide-react';
 
+const LOCAL_STORAGE_KEY = 'aiAssistantChatHistory';
+
 const AIAssistant = () => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [chatHistory, setChatHistory] = useState([
-    {
+  const [chatHistory, setChatHistory] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+    return [{
       id: 1,
       type: 'ai',
       message: "Hi! I'm your AI study assistant. Ask me anything about your studies.",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    },
-  ]);
+    }];
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isTyping]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(chatHistory));
+  }, [chatHistory]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || isTyping) return;
@@ -87,6 +95,7 @@ const AIAssistant = () => {
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   }`}
+                  style={{ minWidth: '120px', border: '1px solid #e5e7eb' }}
                 >
                   <p className="text-sm">{chat.message}</p>
                   <p className={`text-xs mt-1 ${
@@ -100,7 +109,7 @@ const AIAssistant = () => {
             {/* Typing Indicator */}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-lg p-3 max-w-[80%]">
+                <div className="bg-muted rounded-lg p-3 max-w-[80%]" style={{ minWidth: '120px', border: '1px solid #e5e7eb' }}>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -121,8 +130,7 @@ const AIAssistant = () => {
               placeholder="Ask me anything..."
               value={message}
               onChange={e => setMessage(e.target.value)}
-              className="flex-1"
-              autoFocus
+              className="flex-1 border border-primary rounded-lg px-4 py-2 bg-white dark:bg-zinc-900 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isTyping}
             />
             <Button
