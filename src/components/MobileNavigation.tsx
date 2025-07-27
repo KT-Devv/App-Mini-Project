@@ -1,12 +1,12 @@
-
 import { Home, MessageCircle, Video, User, Brain } from 'lucide-react';
 
 interface MobileNavigationProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isInputFocused?: boolean;
 }
 
-const MobileNavigation = ({ activeTab, setActiveTab }: MobileNavigationProps) => {
+const MobileNavigation = ({ activeTab, setActiveTab, isInputFocused = false }: MobileNavigationProps) => {
   const navItems = [
     { id: 'home', icon: Home, label: 'Home' },
     { id: 'chat', icon: MessageCircle, label: 'Chat' },
@@ -16,7 +16,7 @@ const MobileNavigation = ({ activeTab, setActiveTab }: MobileNavigationProps) =>
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t px-2 py-2 z-50 safe-area-bottom">
+    <nav className={`${isInputFocused ? 'absolute' : 'fixed'} bottom-0 left-0 right-0 bg-white border-t px-2 py-2 z-50 safe-area-bottom`}>
       <div className="flex justify-around max-w-md mx-auto">
         {navItems.map((item) => (
           <button

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { queryDeepSeek } from '../lib/huggingfaceAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Brain } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'aiAssistantChatHistory';
@@ -33,7 +32,7 @@ const AIAssistant = () => {
   const handleSendMessage = async () => {
     if (!message.trim() || isTyping) return;
     const newMessage = {
-      id: chatHistory.length + 1,
+      id: Date.now(),
       type: 'user',
       message,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -46,7 +45,7 @@ const AIAssistant = () => {
       setChatHistory(prev => [
         ...prev,
         {
-          id: prev.length + 1,
+          id: Date.now() + 1,
           type: 'ai',
           message: aiContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -56,7 +55,7 @@ const AIAssistant = () => {
       setChatHistory(prev => [
         ...prev,
         {
-          id: prev.length + 1,
+          id: Date.now() + 1,
           type: 'ai',
           message: 'Sorry, the AI is currently unavailable.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -80,9 +79,10 @@ const AIAssistant = () => {
           </div>
         </div>
       </div>
+
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4 max-w-2xl mx-auto">
             {chatHistory.map((chat) => (
               <div
@@ -120,17 +120,18 @@ const AIAssistant = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
       </div>
+
       {/* Message Input */}
-      <div className="border-t bg-card p-4 sticky bottom-0">
+      <div className="border-t bg-card p-4 relative z-10 pb-[calc(env(safe-area-inset-bottom)+4rem)]">
         <div className="max-w-2xl mx-auto">
-          <form className="flex space-x-2" onSubmit={e => { e.preventDefault(); handleSendMessage(); }}>
+          <form className="flex space-x-2 min-h-[60px]" onSubmit={e => { e.preventDefault(); handleSendMessage(); }}>
             <Input
               placeholder="Ask me anything..."
               value={message}
               onChange={e => setMessage(e.target.value)}
-              className="flex-1 border border-primary rounded-lg px-4 py-2 bg-white dark:bg-zinc-900 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="flex-1 border border-primary rounded-lg px-4 py-2 bg-white dark:bg-zinc-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isTyping}
             />
             <Button
