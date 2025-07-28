@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { queryDeepSeek } from '../lib/huggingfaceAPI';
+import { queryMistral } from '../lib/huggingfaceAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Brain } from 'lucide-react';
@@ -41,7 +41,7 @@ const AIAssistant = () => {
     setMessage('');
     setIsTyping(true);
     try {
-      const aiContent = await queryDeepSeek(message);
+      const aiContent = await queryMistral(message);
       setChatHistory(prev => [
         ...prev,
         {
