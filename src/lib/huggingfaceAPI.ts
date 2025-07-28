@@ -5,7 +5,7 @@ const HF_TOKEN = import.meta.env.VITE_HF_TOKEN;
 
 
 export async function queryMistral(userMessage: string): Promise<string> {
-  const maxTokens = userMessage.length < 50 ? 150 : 300;
+  const maxTokens = 300;
 
   
   try {
