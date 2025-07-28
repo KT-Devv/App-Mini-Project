@@ -72,10 +72,32 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
 
   // Initialize Jitsi Meet
   useEffect(() => {
+    const requestMediaPermissions = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({
+          audio: {
+            autoGainControl: true,
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
+          video: {
+            width: { ideal: 1280, max: 1280, min: 320 },
+            height: { ideal: 720, max: 720, min: 180 },
+            frameRate: { max: 30 },
+          },
+        });
+      } catch (err) {
+        console.warn('Media permissions denied or not available:', err);
+      }
+    };
+
     const initializeJitsi = async () => {
       if (!user || isInitialized.current) return;
 
       try {
+        console.log('Requesting media permissions...');
+        await requestMediaPermissions();
+
         console.log('Initializing Jitsi Meet...');
         await loadJitsiScript();
 
@@ -97,13 +119,25 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
             displayName: user.email?.split('@')[0] || 'Anonymous',
             email: user.email || '',
           },
-        configOverwrite: {
-          startWithAudioMuted: false,
-          startWithVideoMuted: false,
-          enableWelcomePage: false,
-          prejoinPageEnabled: false,
-          disableInviteFunctions: true,
-        },
+          configOverwrite: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            enableWelcomePage: false,
+            prejoinPageEnabled: false,
+            disableInviteFunctions: true,
+            constraints: {
+              audio: {
+                autoGainControl: true,
+                echoCancellation: true,
+                noiseSuppression: true,
+              },
+              video: {
+                width: { ideal: 1280, max: 1280, min: 320 },
+                height: { ideal: 720, max: 720, min: 180 },
+                frameRate: { max: 30 },
+              },
+            },
+          },
           interfaceConfigOverwrite: {
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
