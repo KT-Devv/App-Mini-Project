@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Hash, Menu, Search, Settings, MessageCircle } from 'lucide-react';
+import { Hash, Menu, Search, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -327,9 +327,6 @@ const ChatInterface: React.FC = () => {
                   roomId={activeRoom.id}
                   roomName={activeRoom.name}
                 />
-                <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                  <Settings className="h-4 w-4" />
-                </Button>
               </>
             )}
           </div>

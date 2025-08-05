@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,6 +10,8 @@ import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import JoinRoomPage from "./components/JoinRoomPage";
+import GeminiResponse from "./components/GeminiResponse";
+import { queryGemini } from "./lib/huggingfaceAPI";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -17,7 +19,7 @@ const queryClient = new QueryClient();
 // Protected route wrapper component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary transition-colors">
@@ -28,18 +30,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/welcome" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 // Public route wrapper - redirects to dashboard if already signed in
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary transition-colors">
@@ -50,15 +52,23 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     );
   }
-  
+
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 function App() {
+  const [response, setResponse] = useState("");
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleAskAI = async (userMessage: string) => {
+    const aiResponse = await queryGemini(userMessage);
+    setResponse(aiResponse);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="studysphere-ui-theme">
@@ -67,49 +77,50 @@ function App() {
             <Toaster />
             <BrowserRouter>
               <Routes>
-                <Route 
-                  path="/" 
+                <Route
+                  path="/"
                   element={
                     <ProtectedRoute>
                       <Index />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
-                <Route 
-                  path="/welcome" 
+                <Route
+                  path="/welcome"
                   element={
                     <PublicRoute>
                       <Welcome />
                     </PublicRoute>
-                  } 
+                  }
                 />
-                <Route 
-                  path="/auth" 
+                <Route
+                  path="/auth"
                   element={
                     <PublicRoute>
                       <Auth />
                     </PublicRoute>
-                  } 
+                  }
                 />
-                <Route 
-                  path="/dashboard" 
+                <Route
+                  path="/dashboard"
                   element={
                     <ProtectedRoute>
                       <Index />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
-                <Route 
-                  path="/join-room/:inviteCode" 
+                <Route
+                  path="/join-room/:inviteCode"
                   element={
                     <ProtectedRoute>
                       <JoinRoomPage />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
+            <GeminiResponse responseText={response} />
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>
