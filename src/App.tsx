@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import Index from "./pages/Index";
 import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import JoinRoomPage from "./components/JoinRoomPage";
 import GeminiResponse from "./components/GeminiResponse";
@@ -115,6 +116,14 @@ function App() {
                     <ProtectedRoute>
                       <JoinRoomPage />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reset-password"
+                  element={
+                    <PublicRoute>
+                      <ResetPassword />
+                    </PublicRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />

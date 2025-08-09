@@ -1,3 +1,4 @@
+ 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -15,7 +16,10 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signIn } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const { signUp, signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -46,6 +50,22 @@ const Auth = () => {
       navigate('/dashboard');
     }
     setLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    
+    const { error } = await resetPassword(forgotEmail);
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Password reset email sent! Check your inbox.');
+      setShowForgotPassword(false);
+      setForgotEmail('');
+    }
+    setForgotLoading(false);
   };
 
   return (
@@ -142,6 +162,15 @@ const Auth = () => {
                       'Sign In'
                     )}
                   </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
               
@@ -212,6 +241,51 @@ const Auth = () => {
             </Tabs>
           </CardContent>
         </Card>
+        
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md mx-4">
+              <CardHeader>
+                <h2 className="text-2xl font-bold text-center">Reset Password</h2>
+                <CardDescription className="text-center">
+                  Enter your email address and we'll send you a link to reset your password.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? 'Sending...' : 'Send Reset Email'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowForgotPassword(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
         
         <p className="text-center text-muted-foreground text-sm mt-8">
           By continuing, you agree to our Terms of Service and Privacy Policy
