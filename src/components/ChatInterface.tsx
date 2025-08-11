@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Hash, Menu, Search, MessageCircle } from 'lucide-react';
+import { Hash, Menu, Search, MessageCircle, Paperclip, X, FolderOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import ChatMessage from './ChatMessage';
 import ChatSidebar from './chat/ChatSidebar';
 import ChatWelcome from './chat/ChatWelcome';
 import InviteToRoomModal from './InviteToRoomModal';
+import PersonalFileManager from './PersonalFileManager';
 
 interface ChatRoom {
   id: string;
@@ -28,6 +29,11 @@ interface ChatMessageWithProfile {
   username?: string;
   display_name?: string;
   avatar_url?: string;
+  message_type?: string;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_type?: string | null;
+  file_size?: number | null;
 }
 
 const ChatInterface: React.FC = () => {
@@ -41,6 +47,10 @@ const ChatInterface: React.FC = () => {
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomDescription, setNewRoomDescription] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showPersonalFiles, setShowPersonalFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchChatRooms = async () => {
     try {
@@ -122,17 +132,36 @@ const ChatInterface: React.FC = () => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !activeRoom || !user) return;
+    if ((!newMessage.trim() && !selectedFile) || !activeRoom || !user) return;
+
+    setIsUploading(true);
 
     try {
-      console.log('Sending message:', { content: newMessage.trim(), room_id: activeRoom.id, user_id: user.id });
+      let messageData: any = {
+        content: newMessage.trim() || '',
+        room_id: activeRoom.id,
+        user_id: user.id
+      };
+
+      if (selectedFile) {
+        // Upload file first
+        const fileUrl = await uploadFileToStorage(selectedFile);
+        
+        // Determine message type
+        const isImage = selectedFile.type.startsWith('image/');
+        messageData.message_type = isImage ? 'image' : 'file';
+        messageData.file_url = fileUrl;
+        messageData.file_name = selectedFile.name;
+        messageData.file_type = selectedFile.type;
+        messageData.file_size = selectedFile.size;
+      } else {
+        messageData.message_type = 'text';
+      }
+
+      console.log('Sending message:', messageData);
       const { error } = await supabase
         .from('chat_messages')
-        .insert({
-          content: newMessage.trim(),
-          room_id: activeRoom.id,
-          user_id: user.id,
-        });
+        .insert(messageData);
 
       if (error) {
         console.error('Error sending message:', error);
@@ -142,9 +171,17 @@ const ChatInterface: React.FC = () => {
 
       console.log('Message sent successfully');
       setNewMessage("");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      fetchMessages();
+      toast.success('Message sent successfully!');
     } catch (err) {
       console.error('Unexpected error:', err);
-      toast.error('An unexpected error occurred while sending message');
+      toast.error('An unexpected error occurred while sending the message');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -204,11 +241,101 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadFileToStorage = async (file: File): Promise<string> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `chat-files/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw new Error('Failed to upload file');
+    }
+  };
+
   const selectRoom = (room: ChatRoom) => {
     console.log('Selecting room:', room);
     setActiveRoom(room);
     setMessages([]);
     setShowSidebar(false);
+  };
+
+  const handlePersonalFileSelect = (file: any) => {
+    // This will be used when integrating with AI or other features
+    console.log('Personal file selected:', file);
+    setShowPersonalFiles(false);
+  };
+
+  const handleShareToChat = async (file: any, roomId: string) => {
+    try {
+      // Create a chat message with the shared file
+      const messageData = {
+        content: `Shared file: ${file.original_name}`,
+        room_id: roomId,
+        user_id: user!.id,
+        message_type: file.file_type.startsWith('image/') ? 'image' : 'file',
+        file_url: file.file_url,
+        file_name: file.original_name,
+        file_type: file.file_type,
+        file_size: file.file_size
+      };
+
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert(messageData);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('File shared to chat room!');
+      
+      // If we're currently in that room, refresh messages
+      if (activeRoom?.id === roomId) {
+        fetchMessages();
+      }
+    } catch (error) {
+      console.error('Error sharing file to chat:', error);
+      toast.error('Failed to share file to chat');
+    }
+  };
+
+  const handleShareToAI = async (file: any, purpose?: string) => {
+    // This will integrate with your AI system
+    console.log('Sharing file with AI:', file, 'Purpose:', purpose);
+    toast.success(`File shared with AI for ${purpose || 'analysis'}`);
   };
 
   useEffect(() => {
@@ -318,6 +445,15 @@ const ChatInterface: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-slate-600 hover:text-slate-900"
+              onClick={() => setShowPersonalFiles(true)}
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              My Files
+            </Button>
             {activeRoom && (
               <>
                 <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
@@ -386,13 +522,40 @@ const ChatInterface: React.FC = () => {
                 onSend={sendMessage}
                 onKeyPress={handleKeyPress}
                 placeholder={`Message #${activeRoom.name}`}
-                disabled={false}
+                disabled={isUploading}
+                selectedFile={selectedFile}
+                onFileSelect={handleFileSelect}
+                onRemoveFile={removeSelectedFile}
+                isUploading={isUploading}
               />
             </div>
           </div>
         </div>
       ) : (
         <ChatWelcome type="no-room-selected" onBrowseRooms={() => setShowSidebar(true)} />
+      )}
+
+      {/* Personal File Manager Overlay */}
+      {showPersonalFiles && (
+        <div className="absolute inset-0 bg-white z-50 overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">My Files</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPersonalFiles(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <PersonalFileManager
+            onFileSelect={handlePersonalFileSelect}
+            onShareToChat={handleShareToChat}
+            onShareToAI={handleShareToAI}
+          />
+        </div>
       )}
     </div>
   );

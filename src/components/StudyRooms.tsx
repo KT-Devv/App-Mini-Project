@@ -192,6 +192,8 @@ const StudyRooms = () => {
       
       // Automatically join the session as the creator
       await joinSession(data.id);
+      // Immediately refresh list so the new session appears without a full reload
+      await fetchStudySessions();
       
       toast.success('Study session created successfully!');
       setShowCreateModal(false);

@@ -11,6 +11,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
+  verifyResetToken: (token: string) => Promise<{ error: AuthError | null; user: User | null }>;
 }
 
 interface AuthProviderProps {
@@ -68,10 +69,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const updatePassword = async (newPassword: string) => {
+    // Check if user is authenticated
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) {
+      return { error: { message: 'User not authenticated' } as AuthError };
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
     return { error };
+  };
+
+  const verifyResetToken = async (token: string) => {
+    try {
+      // Exchange the recovery token for a session
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery'
+      });
+      
+      if (error) {
+        return { error, user: null };
+      }
+      
+      return { error: null, user: data.user };
+    } catch (err) {
+      return { 
+        error: { message: 'Invalid or expired reset token' } as AuthError, 
+        user: null 
+      };
+    }
   };
 
   const signOut = async () => {
@@ -89,7 +117,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       signIn, 
       signOut, 
       resetPassword, 
-      updatePassword 
+      updatePassword,
+      verifyResetToken
     }}>
       {children}
     </AuthContext.Provider>

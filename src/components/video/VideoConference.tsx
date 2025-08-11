@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -33,8 +33,24 @@ interface Participant {
 
 declare global {
   interface Window {
-    JitsiMeetExternalAPI: any;
+    JitsiMeetExternalAPI: new (
+      domain: string,
+      options: unknown
+    ) => JitsiExternalAPI;
   }
+}
+
+interface JitsiParticipantEvent {
+  displayName?: string;
+}
+
+interface JitsiExternalAPI {
+  addEventListener: (
+    event: string,
+    handler: (payload?: unknown) => void
+  ) => void;
+  executeCommand: (command: string, ...args: unknown[]) => void;
+  dispose: () => void;
 }
 
 const VideoConference: React.FC<VideoConferenceProps> = ({
@@ -49,9 +65,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSessionCreator, setIsSessionCreator] = useState(false);
+  const [chatRoomId, setChatRoomId] = useState<string | null>(null);
 
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
-  const jitsiApiRef = useRef<any>(null);
+  const jitsiApiRef = useRef<JitsiExternalAPI | null>(null);
   const isInitialized = useRef(false);
 
   // Load Jitsi Meet API script
@@ -69,6 +86,33 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
       document.head.appendChild(script);
     });
   };
+
+  // Handle leave session
+  const handleLeaveSession = useCallback(async () => {
+    try {
+      console.log('Leaving session...');
+
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
+      }
+
+      const { error } = await supabase
+        .from('session_participants')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error leaving session:', error);
+      }
+
+      onLeaveSession();
+    } catch (error) {
+      console.error('Error leaving session:', error);
+      onLeaveSession();
+    }
+  }, [onLeaveSession, sessionId, user?.id]);
 
   // Initialize Jitsi Meet
   useEffect(() => {
@@ -152,16 +196,28 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
           handleLeaveSession();
         });
 
-        jitsiApiRef.current.addEventListener('participantJoined', (participant: any) => {
-          toast.success(`${participant.displayName || 'Someone'} joined the session`);
+        jitsiApiRef.current.addEventListener('participantJoined', (participant?: unknown) => {
+          const payload = (participant as JitsiParticipantEvent) || {};
+          toast.success(`${payload.displayName || 'Someone'} joined the session`);
         });
 
-        jitsiApiRef.current.addEventListener('participantLeft', (participant: any) => {
-          toast.info(`${participant.displayName || 'Someone'} left the session`);
+        jitsiApiRef.current.addEventListener('participantLeft', (participant?: unknown) => {
+          const payload = (participant as JitsiParticipantEvent) || {};
+          toast.info(`${payload.displayName || 'Someone'} left the session`);
         });
 
         jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
           toast.success('Successfully joined the video session!');
+        });
+
+        // Keep local mute state in sync with Jitsi
+        jitsiApiRef.current.addEventListener('audioMuteStatusChanged', (payload?: unknown) => {
+          const data = (payload as { muted?: boolean }) || {};
+          setIsAudioMuted(Boolean(data.muted));
+        });
+        jitsiApiRef.current.addEventListener('videoMuteStatusChanged', (payload?: unknown) => {
+          const data = (payload as { muted?: boolean }) || {};
+          setIsVideoMuted(Boolean(data.muted));
         });
 
         console.log('Jitsi Meet initialized successfully');
@@ -179,10 +235,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
         jitsiApiRef.current = null;
       }
     };
-  }, [user, sessionId]);
+  }, [user, sessionId, handleLeaveSession]);
 
   // Check if user is session creator
-  const checkSessionCreator = async () => {
+  const checkSessionCreator = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('study_sessions')
@@ -199,10 +255,10 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
     } catch (error) {
       console.error('Error checking session creator:', error);
     }
-  };
+  }, [sessionId, user?.id]);
 
   // Fetch participants
-  const fetchParticipants = async () => {
+  const fetchParticipants = useCallback(async () => {
     try {
       const { data: participantsData, error: participantsError } = await supabase
         .from('session_participants')
@@ -239,15 +295,16 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
     } catch (error) {
       console.error('Error fetching participants:', error);
     }
-  };
+  }, [sessionId]);
 
   // Fetch messages
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
+      if (!chatRoomId) return;
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
-        .eq('room_id', sessionId)
+        .eq('room_id', chatRoomId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -259,16 +316,17 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
-  };
+  }, [chatRoomId]);
 
   // Send message
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!newMessage.trim() || !user) return;
 
     try {
-      const { error } = await supabase.from('chat_messages').upsert({
+      if (!chatRoomId) return;
+      const { error } = await supabase.from('chat_messages').insert({
         content: newMessage.trim(),
-        room_id: sessionId,
+        room_id: chatRoomId,
         user_id: user.id,
       });
 
@@ -284,37 +342,78 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
       console.error('Error sending message:', error);
       toast.error('An unexpected error occurred');
     }
-  };
+  }, [chatRoomId, fetchMessages, newMessage, user]);
 
-  // Handle leave session
-  const handleLeaveSession = async () => {
+  // Ensure a chat room exists for this session and the user is a member
+  const ensureChatRoomAndMembership = useCallback(async () => {
+    if (!user || !sessionId) return;
     try {
-      console.log('Leaving session...');
+      // Try to find existing chat room with id = sessionId
+      const { data: existingRoom, error: roomFetchError } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .eq('id', sessionId)
+        .single();
 
-      if (jitsiApiRef.current) {
-        jitsiApiRef.current.dispose();
-        jitsiApiRef.current = null;
+      if (roomFetchError && roomFetchError.code !== 'PGRST116') {
+        // PGRST116: No rows found for single() - safe to ignore
+        console.warn('Error checking chat room:', roomFetchError);
       }
 
-      const { error } = await supabase
-        .from('session_participants')
-        .delete()
-        .eq('session_id', sessionId)
-        .eq('user_id', user?.id);
+      let roomIdToUse = existingRoom?.id as string | undefined;
 
-      if (error) {
-        console.error('Error leaving session:', error);
+      if (!roomIdToUse) {
+        const { data: createdRoom, error: createRoomError } = await supabase
+          .from('chat_rooms')
+          .insert({
+            id: sessionId, // bind chat room id to session id for 1:1 mapping
+            name: `${sessionTitle || 'Session'} Chat`,
+            description: `Chat for study session ${sessionId}`,
+            created_by: user.id,
+            is_active: true,
+          })
+          .select('id')
+          .single();
+
+        if (createRoomError) {
+          console.error('Error creating chat room for session:', createRoomError);
+          return;
+        }
+
+        roomIdToUse = createdRoom?.id;
       }
 
-      onLeaveSession();
-    } catch (error) {
-      console.error('Error leaving session:', error);
-      onLeaveSession();
+      if (!roomIdToUse) return;
+
+      // Ensure membership
+      const { data: existingMember } = await supabase
+        .from('chat_room_members')
+        .select('id')
+        .eq('room_id', roomIdToUse)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!existingMember) {
+        const { error: addMemberError } = await supabase
+          .from('chat_room_members')
+          .insert({ room_id: roomIdToUse, user_id: user.id, role: 'member' });
+
+        if (addMemberError) {
+          console.error('Error adding user to chat room members:', addMemberError);
+          // Do not return; membership might be auto-managed elsewhere. Continue.
+        }
+      }
+
+      setChatRoomId(roomIdToUse);
+    } catch (e) {
+      console.error('Failed to ensure chat room and membership for session:', e);
     }
-  };
+  }, [sessionId, sessionTitle, user]);
+
+  // handleLeaveSession already declared above for use in effects
 
   // Handle close session
-  const handleCloseSession = async () => {
+  const handleCloseSession = useCallback(async () => {
     try {
       console.log('Closing session...');
 
@@ -347,7 +446,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
       console.error('Error closing session:', error);
       toast.error('An unexpected error occurred');
     }
-  };
+  }, [onLeaveSession, sessionId]);
 
   // Retry connection
   const retryConnection = async () => {
@@ -366,7 +465,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
   };
 
   // Initialize session
-  const initializeSession = async () => {
+  const initializeSession = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -390,11 +489,11 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [checkSessionCreator, fetchMessages, fetchParticipants, sessionId, user]);
 
   // Setup real-time subscriptions
   useEffect(() => {
-    if (!user || !sessionId) return;
+    if (!user || !chatRoomId) return;
 
     const participantsChannel = supabase
       .channel(`session-participants-${sessionId}`)
@@ -422,7 +521,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
           table: 'chat_messages',
         },
         (payload) => {
-          if (payload.new.room_id === sessionId) {
+          if (payload.new.room_id === chatRoomId) {
             fetchMessages();
           }
         }
@@ -433,11 +532,13 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
       supabase.removeChannel(participantsChannel);
       supabase.removeChannel(messagesChannel);
     };
-  }, [sessionId, user]);
+  }, [chatRoomId, fetchMessages, fetchParticipants, sessionId, user]);
 
   // Initialize on mount
   useEffect(() => {
     if (user && sessionId) {
+      // Prepare chat backend and initial data
+      ensureChatRoomAndMembership();
       initializeSession();
     }
 
@@ -447,7 +548,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
         jitsiApiRef.current = null;
       }
     };
-  }, [sessionId, user]);
+  }, [ensureChatRoomAndMembership, initializeSession, sessionId, user]);
 
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
@@ -460,14 +561,12 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
   const toggleAudio = () => {
     if (jitsiApiRef.current) {
       jitsiApiRef.current.executeCommand('toggleAudio');
-      setIsAudioMuted((prev) => !prev);
     }
   };
 
   const toggleVideo = () => {
     if (jitsiApiRef.current) {
       jitsiApiRef.current.executeCommand('toggleVideo');
-      setIsVideoMuted((prev) => !prev);
     }
   };
 

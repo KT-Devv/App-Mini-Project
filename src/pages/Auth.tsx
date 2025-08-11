@@ -54,18 +54,29 @@ const Auth = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!forgotEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    
     setForgotLoading(true);
     
-    const { error } = await resetPassword(forgotEmail);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Password reset email sent! Check your inbox.');
-      setShowForgotPassword(false);
-      setForgotEmail('');
+    try {
+      const { error } = await resetPassword(forgotEmail);
+      
+      if (error) {
+        toast.error(error.message || 'Failed to send reset email');
+      } else {
+        toast.success('Password reset email sent! Check your inbox and spam folder.');
+        setShowForgotPassword(false);
+        setForgotEmail('');
+      }
+    } catch (err) {
+      toast.error('An error occurred while sending reset email');
+    } finally {
+      setForgotLoading(false);
     }
-    setForgotLoading(false);
   };
 
   return (
@@ -262,6 +273,7 @@ const Auth = () => {
                       onChange={(e) => setForgotEmail(e.target.value)}
                       placeholder="Enter your email"
                       required
+                      className="h-11"
                     />
                   </div>
                   <div className="flex gap-3">
@@ -270,12 +282,22 @@ const Auth = () => {
                       className="flex-1"
                       disabled={forgotLoading}
                     >
-                      {forgotLoading ? 'Sending...' : 'Send Reset Email'}
+                      {forgotLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Sending...</span>
+                        </div>
+                      ) : (
+                        'Send Reset Email'
+                      )}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setShowForgotPassword(false)}
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setForgotEmail('');
+                      }}
                       className="flex-1"
                     >
                       Cancel

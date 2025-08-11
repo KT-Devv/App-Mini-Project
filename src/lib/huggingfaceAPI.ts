@@ -3,6 +3,14 @@ import axios from 'axios';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+// Keep AI outputs concise and practical by default
+const SYSTEM_INSTRUCTION = [
+  "You are a concise study assistant.",
+  "Respond in at most 3 short bullet points or 2 short sentences.",
+  "Avoid long lectures, headings, and heavy formatting.",
+  "Only include essential facts or steps."
+].join(' ');
+
 
 export async function queryGemini(userMessage: string): Promise<string> {
   const greetings = ['hi', 'hello', 'hey', 'greetings'];
@@ -17,8 +25,19 @@ export async function queryGemini(userMessage: string): Promise<string> {
       const response = await axios.post(
         `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
         {
+          system_instruction: {
+            role: 'system',
+            parts: [{ text: SYSTEM_INSTRUCTION }]
+          },
+          generationConfig: {
+            maxOutputTokens: 120,
+            temperature: 0.2,
+            topP: 0.9,
+            candidateCount: 1
+          },
           contents: [
             {
+              role: 'user',
               parts: [
                 { text: userMessage }
               ]

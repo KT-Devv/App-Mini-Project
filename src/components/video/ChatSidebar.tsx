@@ -28,7 +28,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSendMessage,
   userId
 }) => {
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSendMessage();
   };

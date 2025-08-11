@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Download, FileText, Image, File } from 'lucide-react';
 
 interface ChatMessageProps {
   message: {
@@ -11,6 +13,11 @@ interface ChatMessageProps {
     username?: string;
     display_name?: string;
     avatar_url?: string;
+    message_type?: string;
+    file_url?: string | null;
+    file_name?: string | null;
+    file_type?: string | null;
+    file_size?: number | null;
   };
   currentUserId: string;
 }
@@ -61,6 +68,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, currentUserId }) => 
     });
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <Image className="h-5 w-5" />;
+    if (fileType.includes('pdf')) return <FileText className="h-5 w-5" />;
+    return <File className="h-5 w-5" />;
+  };
+
+  const handleFileDownload = (fileUrl: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex items-start space-x-4 group hover:bg-slate-50 -mx-2 px-2 py-3 rounded-xl transition-colors duration-200">
       <Avatar className="h-12 w-12 ring-2 ring-white shadow-sm flex-shrink-0 mt-1">
@@ -96,7 +126,42 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, currentUserId }) => 
           <div className={`break-words leading-relaxed ${
             isOwnMessage ? 'text-white' : 'text-slate-800'
           }`}>
-            {processContent(message.content)}
+            {message.message_type === 'file' && message.file_url ? (
+              <div className="bg-white/10 rounded-lg p-3 border border-white/20">
+                <div className="flex items-center space-x-3">
+                  <div className="text-blue-200">
+                    {getFileIcon(message.file_type || '')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{message.file_name}</p>
+                    <p className="text-xs text-blue-200">
+                      {message.file_size ? formatFileSize(message.file_size) : ''}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-blue-200 hover:text-white hover:bg-white/20"
+                    onClick={() => handleFileDownload(message.file_url!, message.file_name!)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : message.message_type === 'image' && message.file_url ? (
+              <div className="space-y-2">
+                <img 
+                  src={message.file_url} 
+                  alt={message.file_name || 'Shared image'} 
+                  className="max-w-full h-auto rounded-lg max-h-64 object-cover"
+                />
+                {message.content && (
+                  <p className="text-sm">{message.content}</p>
+                )}
+              </div>
+            ) : (
+              processContent(message.content)
+            )}
           </div>
         </div>
       </div>

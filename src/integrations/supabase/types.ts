@@ -16,6 +16,11 @@ export type Database = {
           id: string
           room_id: string | null
           user_id: string | null
+          message_type: string
+          file_url: string | null
+          file_name: string | null
+          file_type: string | null
+          file_size: number | null
         }
         Insert: {
           content: string
@@ -23,6 +28,11 @@ export type Database = {
           id?: string
           room_id?: string | null
           user_id?: string | null
+          message_type?: string
+          file_url?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_size?: number | null
         }
         Update: {
           content?: string
@@ -30,6 +40,11 @@ export type Database = {
           id?: string
           room_id?: string | null
           user_id?: string | null
+          message_type?: string
+          file_url?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_size?: number | null
         }
         Relationships: [
           {
@@ -113,6 +128,202 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_files: {
+        Row: {
+          id: string
+          message_id: string
+          file_url: string
+          file_name: string
+          file_type: string
+          file_size: number
+          uploaded_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          file_url: string
+          file_name: string
+          file_type: string
+          file_size: number
+          uploaded_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          file_url?: string
+          file_name?: string
+          file_type?: string
+          file_size?: number
+          uploaded_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_files_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_files: {
+        Row: {
+          id: string
+          user_id: string
+          file_url: string
+          file_name: string
+          file_type: string
+          file_size: number
+          original_name: string
+          description: string | null
+          tags: string[] | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          file_url: string
+          file_name: string
+          file_type: string
+          file_size: number
+          original_name: string
+          description?: string | null
+          tags?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          file_url?: string
+          file_name?: string
+          file_type?: string
+          file_size?: number
+          original_name?: string
+          description?: string | null
+          tags?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_files_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_shares: {
+        Row: {
+          id: string
+          file_id: string
+          chat_room_id: string
+          shared_by: string
+          shared_at: string
+          message_id: string | null
+        }
+        Insert: {
+          id?: string
+          file_id: string
+          chat_room_id: string
+          shared_by: string
+          shared_at?: string
+          message_id?: string | null
+        }
+        Update: {
+          id?: string
+          file_id?: string
+          chat_room_id?: string
+          shared_by?: string
+          shared_at?: string
+          message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_shares_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "personal_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_shares_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_shares_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_shares_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_ai_shares: {
+        Row: {
+          id: string
+          file_id: string
+          user_id: string
+          shared_at: string
+          ai_session_id: string | null
+          purpose: string | null
+        }
+        Insert: {
+          id?: string
+          file_id: string
+          user_id: string
+          shared_at?: string
+          ai_session_id?: string | null
+          purpose?: string | null
+        }
+        Update: {
+          id?: string
+          file_id?: string
+          user_id?: string
+          shared_at?: string
+          ai_session_id?: string | null
+          purpose?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_ai_shares_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "personal_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_ai_shares_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -397,6 +608,14 @@ export type Database = {
       is_room_member: {
         Args: { room_uuid: string; user_uuid: string }
         Returns: boolean
+      }
+      get_file_share_info: {
+        Args: { file_uuid: string; room_uuid: string }
+        Returns: { share_id: string; shared_by: string; shared_at: string; message_id: string | null }[]
+      }
+      get_user_file_stats: {
+        Args: { user_uuid: string }
+        Returns: { total_files: number; total_size: number; file_types: string[]; recent_uploads: number }[]
       }
     }
     Enums: {

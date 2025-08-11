@@ -3,6 +3,7 @@ import { queryGemini } from '../lib/huggingfaceAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Brain } from 'lucide-react';
+import GeminiResponse from './GeminiResponse';
 
 const LOCAL_STORAGE_KEY = 'aiAssistantChatHistory';
 
@@ -97,7 +98,13 @@ const AIAssistant = () => {
                   }`}
                   style={{ minWidth: '120px', border: '1px solid #e5e7eb' }}
                 >
-                  <p className="text-sm">{chat.message}</p>
+                  {chat.type === 'ai' ? (
+                    <div className="text-sm prose prose-sm dark:prose-invert">
+                      <GeminiResponse responseText={chat.message} />
+                    </div>
+                  ) : (
+                    <p className="text-sm">{chat.message}</p>
+                  )}
                   <p className={`text-xs mt-1 ${
                     chat.type === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
                   }`}>

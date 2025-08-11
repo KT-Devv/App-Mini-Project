@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Mic, MicOff } from 'lucide-react';
+import { Send, Mic, MicOff, Paperclip, X, FileText, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserProfile {
@@ -17,6 +17,10 @@ interface UserMentionInputProps {
   onKeyPress: (e: React.KeyboardEvent) => void;
   placeholder: string;
   disabled?: boolean;
+  selectedFile?: File | null;
+  onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile?: () => void;
+  isUploading?: boolean;
 }
 
 const UserMentionInput: React.FC<UserMentionInputProps> = ({
@@ -25,7 +29,11 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
   onSend,
   onKeyPress,
   placeholder,
-  disabled
+  disabled,
+  selectedFile,
+  onFileSelect,
+  onRemoveFile,
+  isUploading
 }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -179,6 +187,44 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
             disabled={disabled}
           />
           
+          {/* File Input */}
+          <input
+            type="file"
+            onChange={onFileSelect}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.txt,.ppt,.pptx"
+            id="file-upload"
+          />
+          
+          {/* Selected File Display */}
+          {selectedFile && (
+            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center space-x-3">
+                <div className="text-blue-600">
+                  {selectedFile.type.startsWith('image/') ? (
+                    <Image className="h-5 w-5" />
+                  ) : (
+                    <FileText className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-900 truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-blue-600">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                  onClick={onRemoveFile}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {showSuggestions && filteredUsers.length > 0 && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
               <div className="p-2">
@@ -204,6 +250,16 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
         </div>
         
         <Button
+          onClick={() => document.getElementById('file-upload')?.click()}
+          variant="ghost"
+          size="sm"
+          className="p-3 rounded-xl transition-all duration-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+          disabled={disabled}
+        >
+          <Paperclip className="h-5 w-5" />
+        </Button>
+        
+        <Button
           onClick={isRecording ? stopRecording : startRecording}
           variant="ghost"
           size="sm"
@@ -218,10 +274,14 @@ const UserMentionInput: React.FC<UserMentionInputProps> = ({
         
         <Button 
           onClick={onSend}
-          disabled={!value.trim() || disabled}
+          disabled={(!value.trim() && !selectedFile) || disabled || isUploading}
           className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-md transition-all duration-200 disabled:opacity-50"
         >
-          <Send className="h-5 w-5" />
+          {isUploading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send className="h-5 w-5" />
+          )}
         </Button>
       </div>
       

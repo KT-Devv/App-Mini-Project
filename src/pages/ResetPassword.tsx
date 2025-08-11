@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -15,23 +15,42 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [tokenValid, setTokenValid] = useState(true);
+  const [verifying, setVerifying] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { updatePassword } = useAuth();
+  const { updatePassword, verifyResetToken } = useAuth();
 
   useEffect(() => {
-    const token = searchParams.get('token') || searchParams.get('access_token');
-    if (!token) {
-      toast.error('Invalid or missing reset token');
-      navigate('/auth');
-      return;
-    }
-    
-    // Verify token validity - for now we'll assume it's valid
-    // In a real app, you'd verify with Supabase
-    setTokenValid(true);
-  }, [searchParams, navigate]);
+    const verifyToken = async () => {
+      const token = searchParams.get('token') || searchParams.get('access_token');
+      
+      if (!token) {
+        setTokenError('Invalid or missing reset token');
+        setVerifying(false);
+        return;
+      }
+      
+      try {
+        const { error, user } = await verifyResetToken(token);
+        
+        if (error || !user) {
+          setTokenError(error?.message || 'Invalid or expired reset token');
+          setTokenValid(false);
+        } else {
+          setTokenValid(true);
+        }
+      } catch (err) {
+        setTokenError('Failed to verify reset token');
+        setTokenValid(false);
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verifyToken();
+  }, [searchParams, verifyResetToken]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,12 +70,11 @@ const ResetPassword = () => {
     try {
       const { error } = await updatePassword(password);
       if (error) {
-        toast.error('Failed to reset password');
+        toast.error(error.message || 'Failed to reset password');
       } else {
-        toast.success('Password reset successful!');
-        navigate('/dashboard');
+        toast.success('Password reset successful! Please sign in with your new password.');
+        navigate('/auth');
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('An error occurred while resetting password');
     } finally {
@@ -64,13 +82,43 @@ const ResetPassword = () => {
     }
   };
 
+  if (verifying) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <CardDescription>Verifying reset token...</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground">
+              Please wait while we verify your reset token...
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!tokenValid) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardDescription>Verifying reset token...</CardDescription>
+          <CardHeader className="text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-destructive mb-2">Invalid Reset Token</h2>
+            <CardDescription className="text-muted-foreground">
+              {tokenError || 'The reset token is invalid or has expired.'}
+            </CardDescription>
           </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => navigate('/auth')} 
+              className="w-full"
+            >
+              Return to Sign In
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );
