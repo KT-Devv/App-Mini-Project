@@ -12,7 +12,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import JoinRoomPage from "./components/JoinRoomPage";
 import GeminiResponse from "./components/GeminiResponse";
-import { queryGemini } from "./lib/huggingfaceAPI";
+import { queryGemini } from "./lib/geminiAPI";
 import "./App.css";
 
 const queryClient = new QueryClient();

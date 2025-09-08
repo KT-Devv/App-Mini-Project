@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { queryGemini } from '../lib/huggingfaceAPI';
+import { queryGemini } from '../lib/geminiAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Brain } from 'lucide-react';
