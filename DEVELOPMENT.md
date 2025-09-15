@@ -413,5 +413,3 @@ Add screenshots if UI changes
 ---
 
 **Happy coding! 🚀**
-
-*This guide is living documentation. Please update it as the project evolves.*
