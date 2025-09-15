@@ -991,4 +991,3 @@ StudySphere represents the future of digital education, combining cutting-edge t
 
 **End of Documentation**
 
-*Prepared for submission and review*
